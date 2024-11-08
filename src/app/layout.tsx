@@ -15,7 +15,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      {/* apply noise.png to background */}
+      <body
+        className="bg-cover bg-center"
+        style={{
+          backgroundImage: "url('/noise.png')",
+        }}
+      >
+        {children}
+      </body>
     </html>
   );
 }
