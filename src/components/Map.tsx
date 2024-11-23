@@ -1,8 +1,9 @@
-// components/Map.tsx
+// src/components/Map.tsx
 import React, { useEffect, useState } from "react";
-import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
+import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api"; // Use Marker
 import useMarkers from "../hooks/useMarkers";
 import MapImageUpload from "./MapImageUpload";
+import { Memory, UserProfile } from "../types"; // Import the Memory and UserProfile types
 
 const containerStyle = {
   width: "100%",
@@ -10,22 +11,19 @@ const containerStyle = {
 };
 
 const Map: React.FC = () => {
-  const { markers, addMarker } = useMarkers();
   const [currentLocation, setCurrentLocation] = useState<{
     lat: number;
     lng: number;
   } | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
+  const [memories, setMemories] = useState<Memory[]>([]); // Store memories
+  const [mapLoaded, setMapLoaded] = useState(false); // State to track if the map has loaded
 
   // Get user's current location
   useEffect(() => {
     const getCurrentLocation = () => {
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
+        navigator.geolocation.watchPosition(
           (position) => {
             const { latitude, longitude } = position.coords;
             setCurrentLocation({ lat: latitude, lng: longitude });
@@ -44,10 +42,10 @@ const Map: React.FC = () => {
     getCurrentLocation();
   }, []);
 
-  const handleMarkerClick = (marker: any) => {
-    // Display marker details (image/video and notes)
+  const handleMarkerClick = (memory: Memory) => {
+    // Display memory details (image/video and notes)
     alert(
-      `Notes: ${marker.notes}\nImage/Video URL: ${marker.imageUrls.join(", ")}`
+      `Title: ${memory.title}\nNotes: ${memory.notes}\nImage/Video URLs: ${memory.imageUrls.join(", ")}`
     );
   };
 
@@ -69,46 +67,68 @@ const Map: React.FC = () => {
 
   return (
     <LoadScript googleMapsApiKey={googleMapsApiKey}>
-      <GoogleMap
-        mapContainerStyle={containerStyle}
-        center={currentLocation}
-        zoom={15}
-      >
-        {markers.map((marker) => (
-          <Marker
-            key={marker.id}
-            position={{ lat: marker.lat, lng: marker.lng }}
-            onClick={() => handleMarkerClick(marker)}
-          />
-        ))}
+      <div className='relative'>
+        <GoogleMap
+          mapContainerStyle={containerStyle}
+          center={currentLocation}
+          zoom={15}
+          onLoad={() => setMapLoaded(true)} // Set mapLoaded to true when the map is loaded
+        >
+          {/* Marker for the user's current location */}
+          {currentLocation && mapLoaded && (
+            <Marker
+              position={currentLocation}
+              title='You are here'
+              icon={{
+                url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png", // Custom icon for current location
+                scaledSize: new window.google.maps.Size(30, 30), // Adjust size as needed
+              }}
+            />
+          )}
+
+          {memories.map((memory) => (
+            <Marker
+              key={memory.id}
+              position={{
+                lat: memory.location.latitude,
+                lng: memory.location.longitude,
+              }}
+              onClick={() => handleMarkerClick(memory)}
+            />
+          ))}
+        </GoogleMap>
         <button
-          style={{
-            position: "absolute",
-            top: "10px",
-            left: "10px",
-            zIndex: 1,
-            padding: "10px",
-            backgroundColor: "white",
-            border: "1px solid black",
-            borderRadius: "5px",
-          }}
+          className='absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition'
           onClick={handleUploadButtonClick}
         >
           Upload Image/Video
         </button>
-      </GoogleMap>
-      {showUploadModal && selectedLocation && (
+      </div>
+      {showUploadModal && (
         <MapImageUpload
-          onUpload={(urls: string[], notes: string) => {
-            const newMarker = {
-              lat: selectedLocation.lat,
-              lng: selectedLocation.lng,
+          onUpload={(urls: string[], notes: string, title: string) => {
+            const newMemory: Memory = {
+              id: Date.now().toString(), // Generate a unique ID
+              title,
+              description: "", // You can add a description field if needed
+              location: {
+                latitude: currentLocation.lat,
+                longitude: currentLocation.lng,
+              },
               imageUrls: urls,
-              notes: notes,
+              videoUrls: [], // Add video URLs if needed
+              notes,
+              createdBy: {
+                uid: "user-id", // Replace with actual user ID
+                email: "user@example.com", // Replace with actual user email
+                createdAt: new Date(), // Set createdAt to current date
+                updatedAt: new Date(), // Set updatedAt to current date
+              } as UserProfile, // Cast to UserProfile
+              createdAt: new Date(),
+              updatedAt: new Date(),
             };
-            addMarker(newMarker);
+            setMemories((prev) => [...prev, newMemory]); // Add new memory to the state
             setShowUploadModal(false);
-            setSelectedLocation(null);
           }}
           onClose={() => setShowUploadModal(false)}
         />
