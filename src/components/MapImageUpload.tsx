@@ -4,12 +4,13 @@ import { storage } from "@/libs/firebaseConfig"; // Ensure you have Firebase sto
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const MapImageUpload: React.FC<{
-  onUpload: (urls: string[], notes: string) => void;
+  onUpload: (urls: string[], notes: string, title: string) => void;
   onClose: () => void;
 }> = ({ onUpload, onClose }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
+  const [title, setTitle] = useState(""); // New state for title
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -33,44 +34,58 @@ const MapImageUpload: React.FC<{
       const url = await getDownloadURL(storageRef);
       uploadedUrls.push(url);
     }
-    onUpload(uploadedUrls, notes);
+    onUpload(uploadedUrls, notes, title); // Pass title to onUpload
   };
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: "20%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        backgroundColor: "white",
-        padding: "20px",
-        borderRadius: "10px",
-        boxShadow: "0 0 10px rgba(0,0,0,0.5)",
-      }}
-    >
-      <h2>Upload Image/Video</h2>
-      <input type='file' multiple onChange={handleFileChange} />
-      <div>
-        {previewUrls.map((url, index) => (
-          <img
-            key={index}
-            src={url}
-            alt={`Preview ${index}`}
-            style={{ width: "100px", height: "100px", margin: "5px" }}
-          />
-        ))}
+    <div className='fixed inset-0 flex items-center justify-center bg-black bg-opacity-50'>
+      <div className='bg-white p-6 rounded-lg shadow-lg w-11/12 max-w-md'>
+        <h2 className='text-xl font-semibold mb-4'>Upload Image/Video</h2>
+        <input
+          type='text'
+          placeholder='Title'
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className='border border-gray-300 rounded-md p-2 w-full mb-4'
+        />
+        <input
+          type='file'
+          multiple
+          onChange={handleFileChange}
+          className='mb-4'
+        />
+        <div className='flex flex-wrap mb-4'>
+          {previewUrls.map((url, index) => (
+            <img
+              key={index}
+              src={url}
+              alt={`Preview ${index}`}
+              className='w-24 h-24 object-cover m-1 border rounded-md'
+            />
+          ))}
+        </div>
+        <textarea
+          placeholder='Add notes here...'
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className='border border-gray-300 rounded-md p-2 w-full mb-4'
+          rows={3}
+        />
+        <div className='flex justify-end'>
+          <button
+            onClick={handleUpload}
+            className='bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition'
+          >
+            Upload
+          </button>
+          <button
+            onClick={onClose}
+            className='ml-2 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition'
+          >
+            Cancel
+          </button>
+        </div>
       </div>
-      <textarea
-        placeholder='Add notes here...'
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        style={{ width: "100%", height: "60px", marginBottom: "10px" }}
-      />
-      <button onClick={handleUpload}>Upload</button>
-      <button onClick={onClose} style={{ marginLeft: "10px" }}>
-        Cancel
-      </button>
     </div>
   );
 };
