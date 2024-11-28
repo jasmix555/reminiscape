@@ -32,7 +32,7 @@ export default function Register() {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
-        password
+        password,
       );
       const user = userCredential.user;
 
@@ -42,7 +42,7 @@ export default function Register() {
       startTimer(); // Start the timer for email verification expiration
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
+        error instanceof Error ? error.message : "An unknown error occurred",
       );
       console.error("Signup Error:", error);
     }
@@ -122,30 +122,30 @@ export default function Register() {
   }
 
   return (
-    <div className='container mx-auto max-w-md p-6'>
-      {error && <p className='mb-4 text-center text-red-600'>{error}</p>}
+    <div className="container mx-auto max-w-md p-6">
+      {error && <p className="mb-4 text-center text-red-600">{error}</p>}
       {!isConfirming ? (
-        <form className='flex flex-col gap-6' onSubmit={handleSubmit}>
-          <h1 className='text-center text-3xl font-bold'>
+        <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+          <h1 className="text-center text-3xl font-bold">
             Get Started with the App
           </h1>
-          <p className='text-center text-sm'>
+          <p className="text-center text-sm">
             Please enter a valid email address.
           </p>
-          <div className='flex flex-col gap-4'>
+          <div className="flex flex-col gap-4">
             <input
               required
-              className='w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none'
-              placeholder='Email Address'
-              type='email'
+              className="w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
+              placeholder="Email Address"
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
             <input
               required
-              className='w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none'
-              placeholder='Password'
-              type='password'
+              className="w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
+              placeholder="Password"
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -157,56 +157,56 @@ export default function Register() {
                 : "bg-yellow-900 hover:bg-yellow-800"
             }`}
             disabled={!email || !password}
-            type='submit'
+            type="submit"
           >
             Verify Email Address
           </button>
 
-          <div className='my-4 flex items-center'>
-            <hr className='flex-grow border-t border-gray-300' />
-            <span className='mx-4 text-gray-500'>or</span>
-            <hr className='flex-grow border-t border-gray-300' />
+          <div className="my-4 flex items-center">
+            <hr className="flex-grow border-t border-gray-300" />
+            <span className="mx-4 text-gray-500">or</span>
+            <hr className="flex-grow border-t border-gray-300" />
           </div>
 
           <button
-            aria-label='Sign up with Google'
+            aria-label="Sign up with Google"
             className={`flex w-full items-center justify-center gap-2 rounded border border-gray-300 bg-white py-2 font-bold text-gray-700 transition ${
               isGoogleLoading ? "cursor-not-allowed opacity-50" : ""
             }`}
             disabled={isGoogleLoading}
             onClick={handleGoogleSignUp}
           >
-            <Image alt='Google' height={24} src='/google.svg' width={24} />
+            <Image alt="Google" height={24} src="/google.svg" width={24} />
             <span>
               {isGoogleLoading ? "Signing up..." : "Sign up with Google"}
             </span>
           </button>
 
-          <div className='mt-4 text-center'>
-            <p className='text-lg'>
+          <div className="mt-4 text-center">
+            <p className="text-lg">
               Already have an account?{" "}
-              <Link className='font-bold text-yellow-900' href='/login'>
+              <Link className="font-bold text-yellow-900" href="/login">
                 Log in
               </Link>
             </p>
           </div>
         </form>
       ) : (
-        <div className='text-center'>
-          <p className='mb-4 text-green-600'>
+        <div className="text-center">
+          <p className="mb-4 text-green-600">
             A confirmation email has been sent to {email}. Please check your
             inbox to activate your account.
           </p>
           <button
-            className='text-blue-500 underline'
+            className="text-blue-500 underline"
             onClick={handleResendVerification}
           >
             Resend
           </button>
           {timer !== null && (
-            <p className='mt-2 text-sm text-gray-600'>{`Resend available in ${timer} seconds`}</p>
+            <p className="mt-2 text-sm text-gray-600">{`Resend available in ${timer} seconds`}</p>
           )}
-          <p className='mt-4 text-red-600'>
+          <p className="mt-4 text-red-600">
             Please verify your email to complete the registration process.
           </p>
         </div>

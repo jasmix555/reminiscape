@@ -21,7 +21,7 @@ export default function HomePage() {
   if (!user) return null;
 
   return (
-    <main className='absolute inset-0 overflow-hidden'>
+    <main className="absolute inset-0 overflow-hidden">
       <Map />
     </main>
   );
