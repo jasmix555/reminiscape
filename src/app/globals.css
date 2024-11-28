@@ -1,13 +1,57 @@
-/* src/app/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    @apply antialiased;
-  }
-  .main-content {
-    padding-top: 56px; /* Adjust this value to match the height of your header */
-  }
+/* Custom Global Styles */
+
+/* Reset default margins and paddings */
+* {
+  @apply m-0 p-0 box-border;
+}
+
+html,
+body {
+  @apply h-full w-full bg-noise-pattern bg-cover bg-fixed bg-center;
+}
+
+/* Custom Map Styles */
+.mapboxgl-popup-content {
+  @apply bg-white rounded-lg shadow-lg;
+}
+
+.memory-popup {
+  @apply max-w-sm;
+}
+
+.mapboxgl-ctrl-group {
+  @apply bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg;
+}
+
+.mapboxgl-ctrl-group button {
+  @apply border-gray-200;
+}
+
+/* Style for the geolocation button when active */
+.mapboxgl-ctrl-geolocate-active {
+  @apply text-blue-500;
+}
+
+/* Style for the accuracy circle */
+.mapboxgl-user-location-accuracy-circle {
+  @apply bg-blue-500/20;
+}
+
+/* Style for the location dot */
+.mapboxgl-user-location-dot {
+  @apply bg-blue-500;
+}
+
+/* Optional: Hide only mapbox logo and attribution text */
+.mapboxgl-ctrl-bottom-left {
+  @apply hidden;
+}
+
+/* Hide only the attribution but keep the controls visible */
+.mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-attrib {
+  @apply hidden;
 }

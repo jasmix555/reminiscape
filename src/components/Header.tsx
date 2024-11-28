@@ -2,12 +2,12 @@
 "use client"; // Ensure this is at the top of the file
 import Image from "next/image";
 import Link from "next/link";
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 
-import {useProfile} from "@/hooks";
+import { useProfile } from "@/hooks";
 
 const Header = () => {
-  const {profile, loading} = useProfile();
+  const { profile, loading } = useProfile();
   const [opacity, setOpacity] = useState(0.4); // Initial opacity for the background
 
   useEffect(() => {
@@ -30,22 +30,25 @@ const Header = () => {
   const photoURL = profile?.photoURL || "/default-profile.png";
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white backdrop-blur-md">
+    <header className='fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white'>
       <div
-        className="absolute left-0 right-0 top-0 h-full bg-gradient-to-b from-gray-100 to-gray-50 transition-opacity duration-300"
-        style={{opacity}}
+        className='absolute left-0 right-0 top-0 h-full '
+        style={{ opacity }}
       />
-      <Link className="z-10 flex-grow text-center text-2xl font-bold text-black" href={"/"}>
-        Reminiscape
-      </Link>
-      <Link className="relative z-10 cursor-pointer" href={"/setup-profile"}>
+      <Link className='relative z-10 cursor-pointer' href={"/setup-profile"}>
         <Image
-          alt="User Profile"
-          className="h-10 w-10 rounded-full object-cover"
+          alt='User Profile'
+          className='h-10 w-10 rounded-full object-cover'
           height={40}
           src={photoURL}
           width={40}
         />
+      </Link>
+      <Link
+        className='z-10 flex-grow text-center text-2xl font-bold text-white'
+        href={"/"}
+      >
+        Reminiscape
       </Link>
     </header>
   );

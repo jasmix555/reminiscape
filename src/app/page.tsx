@@ -3,7 +3,6 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-
 import { Loading, Map } from "@/components";
 import { useAuth } from "@/hooks";
 
@@ -22,11 +21,8 @@ export default function HomePage() {
   if (!user) return null;
 
   return (
-    <div className='min-h-fit'>
-      <div className='container mx-auto px-4 py-8'>
-        <h1>Welcome </h1>
-        <Map />
-      </div>
-    </div>
+    <main className='absolute inset-0 overflow-hidden'>
+      <Map />
+    </main>
   );
 }

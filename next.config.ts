@@ -1,5 +1,5 @@
 // next.config.ts
-import type {NextConfig} from "next";
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
@@ -7,6 +7,19 @@ const nextConfig: NextConfig = {
       "lh3.googleusercontent.com", // For Google Auth profile images
       "firebasestorage.googleapis.com", // For Firebase Storage images
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Permissions-Policy",
+            value: "geolocation=(self), camera=(), microphone=()",
+          },
+        ],
+      },
+    ];
   },
 };
 
