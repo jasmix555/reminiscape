@@ -19,7 +19,7 @@ import { db, storage } from "./firebaseConfig";
  */
 export const createUserProfile = async (
   uid: string,
-  data: Partial<UserProfile>
+  data: Partial<UserProfile>,
 ) => {
   try {
     const userRef = doc(db, "users", uid);
@@ -37,7 +37,7 @@ export const createUserProfile = async (
   } catch (error) {
     console.error(
       "Error creating user profile:",
-      error instanceof Error ? error.message : error
+      error instanceof Error ? error.message : error,
     );
     throw error;
   }
@@ -61,7 +61,7 @@ export const getUserProfile = async (uid: string) => {
   } catch (error) {
     console.error(
       "Error fetching user profile:",
-      error instanceof Error ? error.message : error
+      error instanceof Error ? error.message : error,
     );
     throw error;
   }
@@ -74,7 +74,7 @@ export const getUserProfile = async (uid: string) => {
  */
 export const updateUserProfile = async (
   uid: string,
-  data: Partial<UserProfile>
+  data: Partial<UserProfile>,
 ) => {
   try {
     const userRef = doc(db, "users", uid);
@@ -86,7 +86,7 @@ export const updateUserProfile = async (
   } catch (error) {
     console.error(
       "Error updating user profile:",
-      error instanceof Error ? error.message : error
+      error instanceof Error ? error.message : error,
     );
     throw error;
   }
@@ -112,7 +112,7 @@ export const uploadProfileImage = async (uid: string, file: File) => {
       } catch (error) {
         console.warn(
           "Warning: Error deleting old profile image:",
-          error instanceof Error ? error.message : error
+          error instanceof Error ? error.message : error,
         );
       }
     }
@@ -120,7 +120,7 @@ export const uploadProfileImage = async (uid: string, file: File) => {
     // Upload new image
     const storageRef = ref(
       storage,
-      `profileImages/${uid}/${Date.now()}-${file.name}`
+      `profileImages/${uid}/${Date.now()}-${file.name}`,
     );
 
     await uploadBytes(storageRef, file);
@@ -133,7 +133,7 @@ export const uploadProfileImage = async (uid: string, file: File) => {
   } catch (error) {
     console.error(
       "Error uploading profile image:",
-      error instanceof Error ? error.message : error
+      error instanceof Error ? error.message : error,
     );
     throw error;
   }

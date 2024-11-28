@@ -45,7 +45,7 @@ export default function SetupProfilePage() {
       if (auth.currentUser) {
         const downloadURL = await uploadProfileImage(
           auth.currentUser.uid,
-          file
+          file,
         );
 
         setProfileImageUrl(downloadURL); // Set the uploaded image URL
@@ -78,7 +78,7 @@ export default function SetupProfilePage() {
             updatedAt: new Date().toISOString(),
             ...(profile ? {} : { createdAt: new Date().toISOString() }),
           },
-          { merge: true }
+          { merge: true },
         );
 
         // Redirect to homepage after saving changes
@@ -101,14 +101,14 @@ export default function SetupProfilePage() {
   }
 
   return (
-    <div className='flex min-h-full flex-col items-center justify-center pt-28'>
-      <div className='container mx-auto max-w-md rounded-lg bg-white p-8 shadow-md'>
-        <h1 className='mb-6 text-center text-3xl font-bold text-gray-800'>
+    <div className="flex min-h-full flex-col items-center justify-center pt-28">
+      <div className="container mx-auto max-w-md rounded-lg bg-white p-8 shadow-md">
+        <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">
           {profile ? "Edit Your Profile" : "Set Up Your Profile"}
         </h1>
-        {error && <p className='mb-4 text-center text-red-600'>{error}</p>}
+        {error && <p className="mb-4 text-center text-red-600">{error}</p>}
 
-        <form className='flex flex-col gap-6' onSubmit={handleSubmit}>
+        <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
           <ProfileImageUpload
             currentImage={profileImageUrl || null} // Ensure currentImage is either string or null
             loading={imageLoading}
@@ -116,27 +116,27 @@ export default function SetupProfilePage() {
           />
 
           <div>
-            <label className='block text-sm font-medium text-gray-700'>
+            <label className="block text-sm font-medium text-gray-700">
               Username
             </label>
             <input
               required
-              className='mt-1 block w-full border-b-2 border-gray-300 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none'
-              placeholder='Enter your username'
-              type='text'
+              className="mt-1 block w-full border-b-2 border-gray-300 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
+              placeholder="Enter your username"
+              type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />
           </div>
 
           <div>
-            <label className='block text-sm font-medium text-gray-700'>
+            <label className="block text-sm font-medium text-gray-700">
               Bio
             </label>
             <textarea
               required
-              className='mt-1 block w-full resize-none rounded-md border border-gray-300 p-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none' // Add 'resize-none' class
-              placeholder='Tell us about yourself'
+              className="mt-1 block w-full resize-none rounded-md border border-gray-300 p-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none" // Add 'resize-none' class
+              placeholder="Tell us about yourself"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
             />
@@ -149,7 +149,7 @@ export default function SetupProfilePage() {
                 : "bg-yellow-900 hover:bg-yellow-800"
             }`}
             disabled={loading || imageLoading || !username} // Disable if loading, image loading, or username is empty
-            type='submit'
+            type="submit"
           >
             {loading
               ? "Saving..."

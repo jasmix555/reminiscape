@@ -65,35 +65,35 @@ export default function Login() {
   };
 
   return (
-    <div className='container mx-auto max-w-md p-6'>
-      <form className='flex flex-col gap-6' onSubmit={handleSubmit}>
-        <h1 className='text-center text-3xl font-bold'>Login</h1>
-        <div className='flex flex-col gap-4'>
-          <div className='relative'>
+    <div className="container mx-auto max-w-md p-6">
+      <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+        <h1 className="text-center text-3xl font-bold">Login</h1>
+        <div className="flex flex-col gap-4">
+          <div className="relative">
             <input
               required
-              aria-label='Email Address'
-              className='w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none'
-              placeholder='Email Address'
-              type='email'
+              aria-label="Email Address"
+              className="w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
+              placeholder="Email Address"
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          <div className='relative'>
+          <div className="relative">
             <input
               required
-              aria-label='Password'
-              className='w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none'
-              placeholder='Password'
+              aria-label="Password"
+              className="w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
+              placeholder="Password"
               type={isPasswordVisible ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
             <button
               aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-              className='absolute right-3 top-3 text-gray-600 hover:text-gray-800'
-              type='button'
+              className="absolute right-3 top-3 text-gray-600 hover:text-gray-800"
+              type="button"
               onClick={togglePasswordVisibility}
             >
               {isPasswordVisible ? <AiOutlineEye /> : <AiOutlineEyeInvisible />}
@@ -101,9 +101,9 @@ export default function Login() {
           </div>
           {error && (
             <p
-              aria-live='assertive'
-              className='text-center text-red-600'
-              role='alert'
+              aria-live="assertive"
+              className="text-center text-red-600"
+              role="alert"
             >
               {error}
             </p>
@@ -117,35 +117,35 @@ export default function Login() {
               : "cursor-not-allowed bg-gray-300"
           }`}
           disabled={!email || !password}
-          type='submit'
+          type="submit"
         >
           Login
         </button>
 
-        <div className='my-4 flex items-center'>
-          <hr className='flex-grow border-t border-gray-300' />
-          <span className='mx-4 text-gray-500'>or</span>
-          <hr className='flex-grow border-t border-gray-300' />
+        <div className="my-4 flex items-center">
+          <hr className="flex-grow border-t border-gray-300" />
+          <span className="mx-4 text-gray-500">or</span>
+          <hr className="flex-grow border-t border-gray-300" />
         </div>
 
         <button
-          aria-label='Sign in with Google'
+          aria-label="Sign in with Google"
           className={`flex w-full items-center justify-center gap-2 rounded border border-gray-300 bg-white py-2 font-bold text-gray-700 transition ${
             isGoogleLoading ? "cursor-not-allowed opacity-50" : ""
           }`}
           disabled={isGoogleLoading}
           onClick={handleGoogleSignIn}
         >
-          <Image alt='Google' height={24} src='/google.svg' width={24} />
+          <Image alt="Google" height={24} src="/google.svg" width={24} />
           <span>
             {isGoogleLoading ? "Signing in..." : "Sign in with Google"}
           </span>
         </button>
 
-        <div className='mt-4 text-center'>
-          <p className='text-lg'>
+        <div className="mt-4 text-center">
+          <p className="text-lg">
             Don't have an account?{" "}
-            <Link className='font-bold text-yellow-900' href='/register'>
+            <Link className="font-bold text-yellow-900" href="/register">
               Sign up now
             </Link>
           </p>

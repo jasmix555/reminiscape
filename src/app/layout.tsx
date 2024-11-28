@@ -17,16 +17,16 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang='en'>
+    <html lang="en">
       <head>
         <link
-          as='style'
-          href='/_next/static/css/app/layout.css'
-          precedence='high'
-          rel='stylesheet'
+          as="style"
+          href="/_next/static/css/app/layout.css"
+          precedence="high"
+          rel="stylesheet"
         />
       </head>
-      <body className='min-h-screen bg-noise-pattern bg-cover bg-fixed bg-center'>
+      <body className="min-h-screen bg-noise-pattern bg-cover bg-fixed bg-center">
         <AuthCheck />
         {children}
       </body>

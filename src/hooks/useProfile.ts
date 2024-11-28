@@ -1,9 +1,9 @@
 // src/hooks/useProfile.ts
-import {useState, useEffect} from "react";
-import {getFirestore, doc, getDoc} from "firebase/firestore";
-import {onAuthStateChanged} from "firebase/auth";
+import { useState, useEffect } from "react";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
-import {auth} from "@/libs/firebaseConfig";
+import { auth } from "@/libs/firebaseConfig";
 
 export const useProfile = () => {
   const [profile, setProfile] = useState<any>(null);
@@ -46,5 +46,5 @@ export const useProfile = () => {
     return () => unsubscribe();
   }, []);
 
-  return {profile, loading, error};
+  return { profile, loading, error };
 };
