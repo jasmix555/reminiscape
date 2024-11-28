@@ -1,7 +1,7 @@
 // src/app/layout.tsx
-import type {Metadata} from "next";
+import type { Metadata } from "next";
 
-import {ReactNode} from "react";
+import { ReactNode } from "react";
 
 import "./globals.css";
 import AuthCheck from "@/components/AuthCheck";
@@ -17,16 +17,16 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang='en'>
       <head>
         <link
-          as="style"
-          href="/_next/static/css/app/layout.css"
-          precedence="high"
-          rel="stylesheet"
+          as='style'
+          href='/_next/static/css/app/layout.css'
+          precedence='high'
+          rel='stylesheet'
         />
       </head>
-      <body className="min-h-screen bg-noise-pattern bg-cover bg-fixed bg-center">
+      <body className='min-h-screen bg-noise-pattern bg-cover bg-fixed bg-center'>
         <AuthCheck />
         {children}
       </body>
