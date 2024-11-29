@@ -60,6 +60,14 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
         <p className='text-xs text-gray-500 mt-2'>
           Created by {memory.createdBy.username || "Unknown"}
         </p>
+        <p className='text-xs text-gray-500'>
+          {new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+        </p>
       </div>
     </div>
   );
