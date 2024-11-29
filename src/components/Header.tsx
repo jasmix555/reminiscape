@@ -1,20 +1,18 @@
 // src/components/Header.tsx
-"use client"; // Ensure this is at the top of the file
+"use client";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
 import { useProfile } from "@/hooks";
 
 const Header = () => {
   const { profile, loading } = useProfile();
-  const [opacity, setOpacity] = useState(0.4); // Initial opacity for the background
+  const [opacity, setOpacity] = useState(0.4);
 
   useEffect(() => {
     const handleScroll = () => {
       const scrollY = window.scrollY;
-      const newOpacity = Math.max(0.1, 0.4 - scrollY / 100); // Adjust opacity based on scroll
-
+      const newOpacity = Math.max(0.1, 0.4 - scrollY / 100);
       setOpacity(newOpacity);
     };
 
@@ -32,10 +30,14 @@ const Header = () => {
   return (
     <header className='fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white'>
       <div
-        className='absolute left-0 right-0 top-0 h-full '
+        className='absolute left-0 right-0 top-0 h-full'
         style={{ opacity }}
       />
-      <Link className='relative z-10 cursor-pointer' href={"/setup-profile"}>
+      {/* Profile Picture on the Left */}
+      <Link
+        className='absolute left-4 top-2 z-10 cursor-pointer'
+        href={"/setup-profile"}
+      >
         <Image
           alt='User Profile'
           className='h-10 w-10 rounded-full object-cover'
@@ -44,8 +46,9 @@ const Header = () => {
           width={40}
         />
       </Link>
+      {/* Centered Logo Name */}
       <Link
-        className='z-10 flex-grow text-center text-2xl font-bold text-black'
+        className='absolute left-1/2 top-2 z-10 transform -translate-x-1/2 text-2xl font-bold text-black'
         href={"/"}
       >
         Reminiscape
@@ -54,4 +57,4 @@ const Header = () => {
   );
 };
 
-export default Header; // Ensure this line is present
+export default Header;
