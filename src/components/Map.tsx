@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useRef } from "react";
 import Map, { Marker, NavigationControl, GeolocateControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { Memory } from "@/types";
 import { HiLocationMarker, HiPlus } from "react-icons/hi";
-import { useAuth, useMemories } from "@/hooks/";
-import MapImageUpload from "./MapImageUpload";
 import Image from "next/image";
 import toast from "react-hot-toast";
+
+import MapImageUpload from "./MapImageUpload";
 import MarkerModal from "./MarkerModal";
+
+import { Memory } from "@/types";
+import { useAuth, useMemories } from "@/hooks";
 
 const mapStyles = {
   touchAction: "none",
@@ -119,11 +121,13 @@ const MapComponent: React.FC = () => {
   const handleCreateMemory = () => {
     if (!user || !profile) {
       toast.error("Please log in to create memories");
+
       return;
     }
 
     if (!userLocation) {
       toast.error("Please enable location services to create memories");
+
       return;
     }
 
@@ -131,9 +135,10 @@ const MapComponent: React.FC = () => {
   };
 
   const handleMemoryCreation = async (
-    memory: Omit<Memory, "id" | "createdBy" | "createdAt" | "updatedAt">
+    memory: Omit<Memory, "id" | "createdBy" | "createdAt" | "updatedAt">,
   ) => {
     const loadingToast = toast.loading("Creating memory...");
+
     try {
       await addMemory(memory);
       toast.success("Memory created successfully!", { id: loadingToast });
@@ -162,7 +167,7 @@ const MapComponent: React.FC = () => {
   };
 
   return (
-    <div className='absolute inset-0 w-full h-full'>
+    <div className="absolute inset-0 w-full h-full">
       <Map
         ref={mapRef}
         attributionControl={false}
@@ -172,7 +177,6 @@ const MapComponent: React.FC = () => {
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN} // Use the environment variable for the token
         maxPitch={85}
         style={mapStyles}
-        onMove={handleMapMove}
         onLoad={(event) => {
           const map = event.target;
 
@@ -182,7 +186,8 @@ const MapComponent: React.FC = () => {
 
           if (layers) {
             const labelLayerId = layers.find(
-              (layer) => layer.type === "symbol" && layer.layout?.["text-field"]
+              (layer) =>
+                layer.type === "symbol" && layer.layout?.["text-field"],
             )?.id;
 
             if (labelLayerId) {
@@ -217,14 +222,15 @@ const MapComponent: React.FC = () => {
                     "fill-extrusion-opacity": 0.6,
                   },
                 },
-                labelLayerId
+                labelLayerId,
               );
             }
           }
         }}
+        onMove={handleMapMove}
       >
         {/* Custom Controls */}
-        <div className='absolute right-4 bottom-4 z-10 flex flex-col gap-2'>
+        <div className="absolute right-4 bottom-4 z-10 flex flex-col gap-2">
           <button
             className={`p-2 rounded-full shadow-lg transition-all duration-300 ${
               isFollowingUser
@@ -233,10 +239,10 @@ const MapComponent: React.FC = () => {
             }`}
             onClick={handleLocateClick}
           >
-            <HiLocationMarker className='w-5 h-5' />
+            <HiLocationMarker className="w-5 h-5" />
           </button>
 
-          <div className='bg-white rounded-lg shadow-lg'>
+          <div className="bg-white rounded-lg shadow-lg">
             <NavigationControl
               showCompass={true}
               showZoom={true}
@@ -246,7 +252,7 @@ const MapComponent: React.FC = () => {
         </div>
 
         {/* Hidden GeolocateControl */}
-        <div className='hidden'>
+        <div className="hidden">
           <GeolocateControl
             ref={geolocateControlRef}
             positionOptions={{
@@ -262,11 +268,11 @@ const MapComponent: React.FC = () => {
         {/* User Location Marker */}
         {userLocation && (
           <Marker
-            anchor='center'
+            anchor="center"
             latitude={userLocation.latitude}
             longitude={userLocation.longitude}
           >
-            <div className='w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg pulse-animation' />
+            <div className="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg pulse-animation" />
           </Marker>
         )}
 
@@ -274,24 +280,24 @@ const MapComponent: React.FC = () => {
         {memories.map((memory) => (
           <Marker
             key={memory.id}
-            anchor='bottom'
+            anchor="bottom"
+            className="time-capsule-marker"
             latitude={memory.location.latitude}
             longitude={memory.location.longitude}
             onClick={(e) => {
               e.originalEvent.stopPropagation();
               handleMarkerClick(memory);
             }}
-            className='time-capsule-marker'
           >
-            <div className='cursor-pointer transform hover:scale-110 transition-transform z-50'>
-              <div className='w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg border-2 border-gray-200'>
+            <div className="cursor-pointer transform hover:scale-110 transition-transform z-50">
+              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg border-2 border-gray-200">
                 {memory.imageUrls[0] && (
                   <Image
-                    alt='Memory thumbnail'
-                    className='w-8 h-8 rounded-full object-cover'
+                    alt="Memory thumbnail"
+                    className="w-8 h-8 rounded-full object-cover"
+                    height={32}
                     src={memory.imageUrls[0]}
                     width={32}
-                    height={32}
                   />
                 )}
               </div>
@@ -302,20 +308,20 @@ const MapComponent: React.FC = () => {
         {/* Modal for Memory Details */}
         <MarkerModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
           memory={selectedMemory}
+          onClose={() => setIsModalOpen(false)}
         />
       </Map>
 
       {/* Create Memory Button */}
       <button
-        className='absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10 
+        className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10 
                   bg-blue-500 text-white px-6 py-3 rounded-full shadow-lg 
                   hover:bg-blue-600 transition-colors duration-200 
-                  flex items-center gap-2'
+                  flex items-center gap-2"
         onClick={handleCreateMemory}
       >
-        <HiPlus className='w-5 h-5' />
+        <HiPlus className="w-5 h-5" />
         Create Memory
       </button>
 
@@ -323,8 +329,8 @@ const MapComponent: React.FC = () => {
       {showUploadModal && userLocation && (
         <MapImageUpload
           location={userLocation}
-          onUpload={handleMemoryCreation}
           onClose={() => setShowUploadModal(false)}
+          onUpload={handleMemoryCreation}
         />
       )}
     </div>

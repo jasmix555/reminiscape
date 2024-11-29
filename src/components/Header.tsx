@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
 import { useProfile } from "@/hooks";
 
 const Header = () => {
@@ -13,6 +14,7 @@ const Header = () => {
     const handleScroll = () => {
       const scrollY = window.scrollY;
       const newOpacity = Math.max(0.1, 0.4 - scrollY / 100);
+
       setOpacity(newOpacity);
     };
 
@@ -28,27 +30,30 @@ const Header = () => {
   const photoURL = profile?.photoURL || "/default-profile.png";
 
   return (
-    <header className='fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white'>
+    <header className="fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white">
       <div
-        className='absolute left-0 right-0 top-0 h-full'
+        className="absolute left-0 right-0 top-0 h-full"
         style={{ opacity }}
       />
       {/* Profile Picture on the Left */}
       <Link
-        className='absolute left-4 top-2 z-10 cursor-pointer'
+        className="absolute left-4 top-4 z-10 cursor-pointer flex items-center space-x-2"
         href={"/setup-profile"}
       >
         <Image
-          alt='User Profile'
-          className='h-10 w-10 rounded-full object-cover'
+          alt="User Profile"
+          className="h-14 w-14 rounded-full object-cover"
           height={40}
           src={photoURL}
           width={40}
         />
+        <p className="hidden md:block text-black font-bold">
+          {profile?.displayName || profile?.username || "Setup Profile"}
+        </p>
       </Link>
       {/* Centered Logo Name */}
       <Link
-        className='absolute left-1/2 top-2 z-10 transform -translate-x-1/2 text-2xl font-bold text-black'
+        className="absolute left-1/2 top-7 z-10 transform -translate-x-1/2 text-2xl font-bold text-black"
         href={"/"}
       >
         Reminiscape

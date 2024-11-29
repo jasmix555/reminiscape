@@ -1,4 +1,3 @@
-"use client";
 import Link from "next/link";
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -15,12 +14,11 @@ import { auth } from "@/libs/firebaseConfig";
 import { Loading } from "@/components";
 
 export default function Register() {
-  const { loading } = useAuth(); // Call useAuth to trigger redirect
+  const { loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isVerified, setIsVerified] = useState(false);
   const [timer, setTimer] = useState<number | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
   const router = useRouter();
@@ -36,10 +34,9 @@ export default function Register() {
       );
       const user = userCredential.user;
 
-      // Send a verification email
       await sendEmailVerification(user);
       setIsConfirming(true);
-      startTimer(); // Start the timer for email verification expiration
+      startTimer();
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "An unknown error occurred",
@@ -56,13 +53,12 @@ export default function Register() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Send a verification email if the user is newly created
       if (user && !user.emailVerified) {
         await sendEmailVerification(user);
         setIsConfirming(true);
-        startTimer(); // Start the timer for email verification expiration
+        startTimer();
       } else {
-        router.push("/setup-profile"); // Redirect to setup profile if already verified
+        router.push("/setup-profile");
       }
     } catch (error) {
       setError("Google Sign-Up failed.");
@@ -81,8 +77,10 @@ export default function Register() {
       setTimer((prev) => {
         if (prev === 1) {
           clearInterval(interval);
+
           return null;
         }
+
         return prev! - 1;
       });
     }, 1000);
@@ -96,12 +94,11 @@ export default function Register() {
         if (user) {
           await user.reload();
           if (user.emailVerified) {
-            setIsVerified(true);
             clearInterval(interval);
-            router.push("/setup-profile"); // Redirect to setup profile after verification
+            router.push("/setup-profile");
           }
         }
-      }, 3000); // Check every 3 seconds
+      }, 3000);
 
       return () => clearInterval(interval);
     }
@@ -113,7 +110,7 @@ export default function Register() {
     if (user) {
       await sendEmailVerification(user);
       setError(null);
-      startTimer(); // Restart the timer on resend
+      startTimer();
     }
   };
 

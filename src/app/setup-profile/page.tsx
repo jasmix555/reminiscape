@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { uploadProfileImage } from "@/libs/profileUtils";
 import { auth } from "@/libs/firebaseConfig";
 import { useProfile } from "@/hooks";
-import { ProfileImageUpload, Loading, LogoutButton } from "@/components";
+import { ProfileImageUpload, Loading } from "@/components";
 
 const db = getFirestore();
 
@@ -101,11 +101,14 @@ export default function SetupProfilePage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col items-center justify-center pt-28">
+    <div className="flex h-screen items-center justify-center ">
       <div className="container mx-auto max-w-md rounded-lg bg-white p-8 shadow-md">
-        <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">
-          {profile ? "Edit Your Profile" : "Set Up Your Profile"}
-        </h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold text-gray-800 text-center">
+            {profile ? "Edit Your Profile" : "Set Up Your Profile"}
+          </h1>
+          <div className="w-10" /> {/* Placeholder for alignment */}
+        </div>
         {error && <p className="mb-4 text-center text-red-600">{error}</p>}
 
         <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
@@ -142,24 +145,31 @@ export default function SetupProfilePage() {
             />
           </div>
 
-          <button
-            className={`w-full rounded-full py-2 font-bold text-white transition ${
-              loading || imageLoading || !username
-                ? "cursor-not-allowed bg-gray-400"
-                : "bg-yellow-900 hover:bg-yellow-800"
-            }`}
-            disabled={loading || imageLoading || !username} // Disable if loading, image loading, or username is empty
-            type="submit"
-          >
-            {loading
-              ? "Saving..."
-              : profile
-                ? "Save Changes"
-                : "Complete Setup"}
-          </button>
+          <div className="w-full flex justify-between gap-8">
+            <button
+              className="text-gray-600 hover:text-gray-800 flex py-2 bg-gray-200 rounded-full px-8 justify-center items-center"
+              onClick={() => router.back()}
+            >
+              Cancel
+            </button>
+            <button
+              className={`w-full rounded-full py-2 font-bold text-white transition ${
+                loading || imageLoading || !username
+                  ? "cursor-not-allowed bg-gray-400"
+                  : "bg-yellow-900 hover:bg-yellow-800"
+              }`}
+              disabled={loading || imageLoading || !username} // Disable if loading, image loading, or username is empty
+              type="submit"
+            >
+              {loading
+                ? "Saving..."
+                : profile
+                  ? "Save Changes"
+                  : "Complete Setup"}
+            </button>
+          </div>
         </form>
       </div>
-      <LogoutButton />
     </div>
   );
 }
