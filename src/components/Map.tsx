@@ -1,20 +1,13 @@
-// components/Map.tsx
 import React, { useEffect, useState, useRef } from "react";
-import Map, {
-  Marker,
-  Popup,
-  NavigationControl,
-  GeolocateControl,
-} from "react-map-gl";
+import Map, { Marker, NavigationControl, GeolocateControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Memory } from "@/types";
 import { HiLocationMarker, HiPlus } from "react-icons/hi";
-import { format } from "date-fns";
 import { useAuth, useMemories } from "@/hooks/";
-
 import MapImageUpload from "./MapImageUpload";
 import Image from "next/image";
 import toast from "react-hot-toast";
+import MarkerModal from "./MarkerModal";
 
 const mapStyles = {
   touchAction: "none",
@@ -26,9 +19,9 @@ const MapComponent: React.FC = () => {
   const { user, profile } = useAuth();
   const { memories, loading, addMemory, refreshMemories } = useMemories();
   const [viewState, setViewState] = useState({
-    longitude: -122.4,
-    latitude: 37.8,
-    zoom: 15,
+    longitude: 0,
+    latitude: 0,
+    zoom: 1,
     pitch: 45,
     bearing: 0,
   });
@@ -41,6 +34,7 @@ const MapComponent: React.FC = () => {
   const [isFollowingUser, setIsFollowingUser] = useState(false);
   const mapRef = useRef<any>(null);
   const geolocateControlRef = useRef<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -58,38 +52,38 @@ const MapComponent: React.FC = () => {
     }
   }, [user, loading, refreshMemories]);
 
-  useEffect(() => {
-    console.log("Modal state changed:", showUploadModal);
-  }, [showUploadModal]);
-
   const handleGeolocate = (position: GeolocationPosition) => {
-    const newLocation = {
-      longitude: position.coords.longitude,
-      latitude: position.coords.latitude,
-    };
+    if (position.coords) {
+      const newLocation = {
+        longitude: position.coords.longitude,
+        latitude: position.coords.latitude,
+      };
 
-    setUserLocation(newLocation);
-    setIsFollowingUser(true);
+      setUserLocation(newLocation);
+      setIsFollowingUser(true);
 
-    if (mapRef.current) {
-      mapRef.current.getMap().flyTo({
-        center: [newLocation.longitude, newLocation.latitude],
+      if (mapRef.current) {
+        mapRef.current.getMap().flyTo({
+          center: [newLocation.longitude, newLocation.latitude],
+          zoom: 15,
+          pitch: 45,
+          bearing: 0,
+          essential: true,
+          duration: 2000,
+        });
+      }
+
+      setViewState((prev) => ({
+        ...prev,
+        longitude: newLocation.longitude,
+        latitude: newLocation.latitude,
         zoom: 15,
         pitch: 45,
         bearing: 0,
-        essential: true,
-        duration: 2000,
-      });
+      }));
+    } else {
+      toast.error("Unable to retrieve location.");
     }
-
-    setViewState((prev) => ({
-      ...prev,
-      longitude: newLocation.longitude,
-      latitude: newLocation.latitude,
-      zoom: 15,
-      pitch: 45,
-      bearing: 0,
-    }));
   };
 
   const handleMapMove = (evt: any) => {
@@ -123,8 +117,6 @@ const MapComponent: React.FC = () => {
   };
 
   const handleCreateMemory = () => {
-    console.log("Create memory clicked");
-
     if (!user || !profile) {
       toast.error("Please log in to create memories");
       return;
@@ -135,7 +127,6 @@ const MapComponent: React.FC = () => {
       return;
     }
 
-    console.log("Showing upload modal");
     setShowUploadModal(true);
   };
 
@@ -153,6 +144,23 @@ const MapComponent: React.FC = () => {
     }
   };
 
+  const handleMarkerClick = (memory: Memory) => {
+    setSelectedMemory(memory);
+    setIsModalOpen(true);
+
+    // Fly to the marker's location and set zoom to 18
+    if (mapRef.current) {
+      mapRef.current.getMap().flyTo({
+        center: [memory.location.longitude, memory.location.latitude],
+        zoom: 18,
+        pitch: 45,
+        bearing: 0,
+        essential: true, // This ensures the animation is not interrupted
+        duration: 2000, // Duration of the flyTo animation
+      });
+    }
+  };
+
   return (
     <div className='absolute inset-0 w-full h-full'>
       <Map
@@ -160,14 +168,63 @@ const MapComponent: React.FC = () => {
         attributionControl={false}
         {...viewState}
         antialias={true}
-        mapStyle='mapbox://styles/jasmix/cm4216fqz003w01rcgl998m2d'
-        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
+        mapStyle={process.env.NEXT_PUBLIC_MAPBOX_STYLE} // Use the environment variable for the style
+        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN} // Use the environment variable for the token
         maxPitch={85}
         style={mapStyles}
         onMove={handleMapMove}
+        onLoad={(event) => {
+          const map = event.target;
+
+          // Add 3D buildings layer
+          const style = map.getStyle();
+          const layers = style?.layers;
+
+          if (layers) {
+            const labelLayerId = layers.find(
+              (layer) => layer.type === "symbol" && layer.layout?.["text-field"]
+            )?.id;
+
+            if (labelLayerId) {
+              map.addLayer(
+                {
+                  id: "add-3d-buildings",
+                  source: "composite",
+                  "source-layer": "building",
+                  filter: ["==", "extrude", "true"],
+                  type: "fill-extrusion",
+                  minzoom: 15,
+                  paint: {
+                    "fill-extrusion-color": "#aaa",
+                    "fill-extrusion-height": [
+                      "interpolate",
+                      ["linear"],
+                      ["zoom"],
+                      15,
+                      0,
+                      15.05,
+                      ["get", "height"],
+                    ],
+                    "fill-extrusion-base": [
+                      "interpolate",
+                      ["linear"],
+                      ["zoom"],
+                      15,
+                      0,
+                      15.05,
+                      ["get", "min_height"],
+                    ],
+                    "fill-extrusion-opacity": 0.6,
+                  },
+                },
+                labelLayerId
+              );
+            }
+          }
+        }}
       >
         {/* Custom Controls */}
-        <div className='absolute right-4 top-4 z-10 flex flex-col gap-2'>
+        <div className='absolute right-4 bottom-4 z-10 flex flex-col gap-2'>
           <button
             className={`p-2 rounded-full shadow-lg transition-all duration-300 ${
               isFollowingUser
@@ -222,10 +279,11 @@ const MapComponent: React.FC = () => {
             longitude={memory.location.longitude}
             onClick={(e) => {
               e.originalEvent.stopPropagation();
-              setSelectedMemory(memory);
+              handleMarkerClick(memory);
             }}
+            className='time-capsule-marker'
           >
-            <div className='cursor-pointer transform hover:scale-110 transition-transform'>
+            <div className='cursor-pointer transform hover:scale-110 transition-transform z-50'>
               <div className='w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg border-2 border-gray-200'>
                 {memory.imageUrls[0] && (
                   <Image
@@ -241,42 +299,12 @@ const MapComponent: React.FC = () => {
           </Marker>
         ))}
 
-        {/* Memory Popup */}
-        {selectedMemory && (
-          <Popup
-            anchor='bottom'
-            latitude={selectedMemory.location.latitude}
-            longitude={selectedMemory.location.longitude}
-            onClose={() => setSelectedMemory(null)}
-            closeButton={true}
-            closeOnClick={false}
-            className='memory-popup'
-            maxWidth='300px'
-          >
-            <div className='p-4'>
-              <h3 className='font-bold text-lg mb-2'>{selectedMemory.title}</h3>
-              <p className='text-sm text-gray-600 mb-2'>
-                {format(selectedMemory.createdAt, "PPP")}
-              </p>
-              <div className='memory-images mb-2 space-y-2'>
-                {selectedMemory.imageUrls.map((url, index) => (
-                  <Image
-                    key={index}
-                    alt={`Memory ${index + 1}`}
-                    className='w-full h-32 object-cover rounded-lg'
-                    src={url}
-                    width={300}
-                    height={128}
-                  />
-                ))}
-              </div>
-              <p className='text-sm'>{selectedMemory.notes}</p>
-              <p className='text-xs text-gray-500 mt-2'>
-                Created by {selectedMemory.createdBy.username}
-              </p>
-            </div>
-          </Popup>
-        )}
+        {/* Modal for Memory Details */}
+        <MarkerModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          memory={selectedMemory}
+        />
       </Map>
 
       {/* Create Memory Button */}

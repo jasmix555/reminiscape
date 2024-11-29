@@ -15,6 +15,7 @@ import toast from "react-hot-toast";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 import { createPortal } from "react-dom";
+import MediaPopup from "./MediaPopup"; // Import the MediaPopup component
 
 interface MapImageUploadProps {
   location: { latitude: number; longitude: number };
@@ -34,14 +35,25 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
+  const [voiceMessage, setVoiceMessage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const MAX_SIZE = 5 * 1024 * 1024; // 5MB
     const validFiles = acceptedFiles.filter((file) => file.size <= MAX_SIZE);
-    if (validFiles.length !== acceptedFiles.length) {
-      toast.error("Some files were too large. Maximum size is 5MB per image.");
+
+    // Notify user about files that are too large
+    const tooLargeFiles = acceptedFiles.filter((file) => file.size > MAX_SIZE);
+    if (tooLargeFiles.length > 0) {
+      toast.error(
+        "Some files were too large. Maximum size is 5MB per image/video."
+      );
     }
+
+    // Update state with valid files
     setFiles((prevFiles) => [...prevFiles, ...validFiles]);
     const newUrls = validFiles.map((file) => URL.createObjectURL(file));
     setPreviewUrls((prevUrls) => [...prevUrls, ...newUrls]);
@@ -49,23 +61,46 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { "image/*": [".jpeg", ".jpg", ".png", ".gif", ".webp"] },
+    accept: {
+      "image/*": [".jpeg", ".jpg", ".png", ".gif", ".webp"],
+      "video/*": [".mp4", ".mov", ".avi"],
+    },
     maxFiles: 5,
     maxSize: 5 * 1024 * 1024,
   });
 
-  const uploadImagesToFirebase = async (): Promise<string[]> => {
+  const uploadFilesToFirebase = async (): Promise<{
+    imageUrls: string[];
+    videoUrls: string[];
+  }> => {
     const storage = getStorage();
-    const uploadedUrls: string[] = [];
+    const uploadedImageUrls: string[] = [];
+    const uploadedVideoUrls: string[] = [];
 
     for (const file of files) {
       const storageRef = ref(storage, `memories/${uuidv4()}-${file.name}`);
       await uploadBytes(storageRef, file);
       const downloadUrl = await getDownloadURL(storageRef);
-      uploadedUrls.push(downloadUrl);
+      if (file.type.startsWith("image/")) {
+        uploadedImageUrls.push(downloadUrl);
+      } else if (file.type.startsWith("video/")) {
+        uploadedVideoUrls.push(downloadUrl);
+      }
     }
 
-    return uploadedUrls;
+    return { imageUrls: uploadedImageUrls, videoUrls: uploadedVideoUrls };
+  };
+
+  const handleVoiceMessageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (file && file.size <= 5 * 1024 * 1024) {
+      // 5MB limit
+      setVoiceMessage(file);
+    } else {
+      toast.error("Voice message must be less than 5MB.");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,7 +112,7 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
     }
 
     if (!files.length) {
-      toast.error("Please add at least one image");
+      toast.error("Please add at least one image or video");
       return;
     }
 
@@ -88,14 +123,26 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
 
     try {
       setUploading(true);
-      const imageUrls = await uploadImagesToFirebase();
+      const { imageUrls, videoUrls } = await uploadFilesToFirebase();
+      let voiceMessageUrl = "";
+
+      if (voiceMessage) {
+        const storage = getStorage();
+        const voiceRef = ref(
+          storage,
+          `memories/${uuidv4()}-${voiceMessage.name}`
+        );
+        await uploadBytes(voiceRef, voiceMessage);
+        voiceMessageUrl = await getDownloadURL(voiceRef);
+      }
 
       await onUpload({
         title: title.trim(),
         description: "",
         location,
         imageUrls,
-        videoUrls: [],
+        videoUrls,
+        voiceMessageUrl, // Include voice message URL
         notes: notes.trim(),
       });
 
@@ -107,6 +154,18 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
     } finally {
       setUploading(false);
     }
+  };
+
+  const openMediaPopup = (url: string, type: "image" | "video") => {
+    setSelectedMedia(url);
+    setMediaType(type);
+    setIsPopupOpen(true);
+  };
+
+  const closeMediaPopup = () => {
+    setSelectedMedia(null);
+    setMediaType(null);
+    setIsPopupOpen(false);
   };
 
   const modalContent = (
@@ -164,7 +223,7 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
               </div>
             </div>
 
-            {/* Image Upload Section */}
+            {/* Image/Video Upload Section */}
             <div className='space-y-2'>
               <label className='block text-sm font-semibold text-gray-700'>
                 Capsule Contents
@@ -181,16 +240,29 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
                 <div className='text-center'>
                   <HiPhotograph className='mx-auto h-12 w-12 text-gray-400' />
                   <p className='mt-2 text-sm text-gray-600'>
-                    Drop your memories here
+                    Drop your memories here (images or videos)
                   </p>
                   <p className='text-xs text-gray-500 mt-1'>
-                    Up to 5 images (max 5MB each)
+                    Up to 5 files (max 5MB each)
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Image Preview Grid */}
+            {/* Voice Message Upload Section */}
+            <div className='space-y-2'>
+              <label className='block text-sm font-semibold text-gray-700'>
+                Voice Message (optional)
+              </label>
+              <input
+                type='file'
+                accept='audio/*'
+                onChange={handleVoiceMessageUpload}
+                className='w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700'
+              />
+            </div>
+
+            {/* Image and Video Preview Grid */}
             {previewUrls.length > 0 && (
               <div className='space-y-2'>
                 <label className='block text-sm font-semibold text-gray-700'>
@@ -198,16 +270,30 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
                 </label>
                 <div className='bg-gray-50 rounded-xl p-4'>
                   <div className='grid grid-cols-2 gap-3'>
-                    {previewUrls.map((url, index) => (
+                    {files.map((file, index) => (
                       <div key={index} className='relative group'>
                         <div className='relative w-full pb-[100%]'>
                           <div className='absolute inset-0'>
-                            <Image
-                              src={url}
-                              alt={`Preview ${index + 1}`}
-                              fill
-                              className='object-cover rounded-lg transform transition-transform group-hover:scale-102'
-                            />
+                            {file.type.startsWith("video/") ? (
+                              <video
+                                controls
+                                className='object-cover rounded-lg cursor-pointer'
+                                src={previewUrls[index]}
+                                onClick={() =>
+                                  openMediaPopup(previewUrls[index], "video")
+                                }
+                              />
+                            ) : (
+                              <Image
+                                src={previewUrls[index]}
+                                alt={`Preview ${index + 1}`}
+                                fill
+                                className='object-cover rounded-lg transform transition-transform group-hover:scale-102 cursor-pointer'
+                                onClick={() =>
+                                  openMediaPopup(previewUrls[index], "image")
+                                }
+                              />
+                            )}
                           </div>
                         </div>
                         <button
@@ -263,7 +349,7 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
                   uploading
                     ? "bg-blue-400 cursor-not-allowed"
                     : "bg-blue-500 hover:bg-blue-600"
-                } transition-colors flex items-center gap-2 shadow-lg`}
+                } transition-colors flex items-center gap-2`}
               >
                 {uploading ? (
                   <>
@@ -281,6 +367,15 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
           </form>
         </div>
       </div>
+
+      {/* Media Popup */}
+      {isPopupOpen && selectedMedia && mediaType && (
+        <MediaPopup
+          mediaUrl={selectedMedia}
+          mediaType={mediaType}
+          onClose={closeMediaPopup}
+        />
+      )}
     </div>
   );
 
