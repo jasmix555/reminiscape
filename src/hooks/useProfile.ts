@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
-import { auth } from "@/libs/firebaseConfig";
+import { auth } from "@/libs";
 
 export const useProfile = () => {
   const [profile, setProfile] = useState<any>(null);
