@@ -20,7 +20,7 @@ export default function AuthCheck() {
   return user && !isCapturePage ? ( // Render Header only if not on capture page
     <>
       <Header />
-      <div className="pt-10"> </div>
+      <div className=""> </div>
     </>
   ) : null;
 }
