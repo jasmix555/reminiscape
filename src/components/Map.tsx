@@ -1,3 +1,4 @@
+// components/Map.tsx
 import React, { useEffect, useState, useRef } from "react";
 import Map, {
   Marker,
@@ -115,7 +116,7 @@ const MapComponent: React.FC = () => {
         attributionControl={false}
         {...viewState}
         antialias={true}
-        mapStyle='mapbox://styles/mapbox/dark-v11'
+        mapStyle='mapbox://styles/jasmix/cm4216fqz003w01rcgl998m2d'
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
         maxPitch={85}
         style={mapStyles}
