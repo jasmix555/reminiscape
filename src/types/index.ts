@@ -24,6 +24,7 @@ export interface Memory {
   };
   imageUrls: string[];
   videoUrls: string[];
+  voiceMessageUrl: string;
   notes: string;
   createdBy: UserProfile;
   createdAt: Date;
