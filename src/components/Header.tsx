@@ -30,22 +30,22 @@ const Header = () => {
   const photoURL = profile?.photoURL || "/default-profile.png";
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white">
+    <header className='fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white'>
       <div
-        className="absolute left-0 right-0 top-0 h-full "
+        className='absolute left-0 right-0 top-0 h-full '
         style={{ opacity }}
       />
-      <Link className="relative z-10 cursor-pointer" href={"/setup-profile"}>
+      <Link className='relative z-10 cursor-pointer' href={"/setup-profile"}>
         <Image
-          alt="User Profile"
-          className="h-10 w-10 rounded-full object-cover"
+          alt='User Profile'
+          className='h-10 w-10 rounded-full object-cover'
           height={40}
           src={photoURL}
           width={40}
         />
       </Link>
       <Link
-        className="z-10 flex-grow text-center text-2xl font-bold text-white"
+        className='z-10 flex-grow text-center text-2xl font-bold text-black'
         href={"/"}
       >
         Reminiscape

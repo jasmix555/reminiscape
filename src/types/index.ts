@@ -8,6 +8,8 @@ export interface Location {
 export interface UserProfile {
   uid: string;
   email: string;
+  username?: string;
+  photoURL?: string;
   createdAt: Date;
   updatedAt: Date;
 }

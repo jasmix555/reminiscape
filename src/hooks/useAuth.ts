@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import Cookies from "js-cookie";
 
-import { auth, db } from "@/libs/firebaseConfig";
+import { auth, db } from "@/libs";
 import { UserProfile } from "@/types";
 
 export function useAuth() {
