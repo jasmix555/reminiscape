@@ -67,7 +67,7 @@ const MapComponent: React.FC = () => {
       if (mapRef.current) {
         mapRef.current.getMap().flyTo({
           center: [newLocation.longitude, newLocation.latitude],
-          zoom: 15,
+          zoom: 16.45,
           pitch: 45,
           bearing: 0,
           essential: true,
@@ -79,7 +79,7 @@ const MapComponent: React.FC = () => {
         ...prev,
         longitude: newLocation.longitude,
         latitude: newLocation.latitude,
-        zoom: 15,
+        zoom: 16.45,
         pitch: 45,
         bearing: 0,
       }));
@@ -107,7 +107,7 @@ const MapComponent: React.FC = () => {
       setIsFollowingUser(true);
       mapRef.current?.getMap().flyTo({
         center: [userLocation.longitude, userLocation.latitude],
-        zoom: 15,
+        zoom: 16.45,
         pitch: 45,
         bearing: 0,
         essential: true,
@@ -157,7 +157,7 @@ const MapComponent: React.FC = () => {
     if (mapRef.current) {
       mapRef.current.getMap().flyTo({
         center: [memory.location.longitude, memory.location.latitude],
-        zoom: 18,
+        zoom: 16.45,
         pitch: 45,
         bearing: 0,
         essential: true, // This ensures the animation is not interrupted

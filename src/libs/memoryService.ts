@@ -1,5 +1,4 @@
 // src/libs/memoryService.ts
-import { db, storage } from "./firebaseConfig";
 import {
   collection,
   addDoc,
@@ -9,8 +8,11 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Memory, UserProfile } from "@/types";
 import { v4 as uuidv4 } from "uuid";
+
+import { db, storage } from "./firebaseConfig";
+
+import { Memory, UserProfile } from "@/types";
 
 export const memoryService = {
   async uploadImages(files: File[], userId: string): Promise<string[]> {
@@ -21,6 +23,7 @@ export const memoryService = {
       const storageRef = ref(storage, fileName);
 
       await uploadBytes(storageRef, file);
+
       return getDownloadURL(storageRef);
     });
 
@@ -29,7 +32,7 @@ export const memoryService = {
 
   async createMemory(
     memoryData: Omit<Memory, "id">,
-    userProfile: UserProfile
+    userProfile: UserProfile,
   ): Promise<Memory> {
     const memoriesRef = collection(db, "memories");
     const docRef = await addDoc(memoriesRef, {
@@ -66,7 +69,7 @@ export const memoryService = {
     const q = query(
       memoriesRef,
       where("createdBy.uid", "==", userId),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
     );
     const snapshot = await getDocs(q);
 
