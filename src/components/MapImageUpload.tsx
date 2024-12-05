@@ -1,5 +1,4 @@
-// components/MapImageUpload.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import {
   HiClock,
@@ -7,6 +6,7 @@ import {
   HiLocationMarker,
   HiX,
   HiPhotograph,
+  HiPlay,
 } from "react-icons/hi";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
@@ -14,10 +14,10 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 import { createPortal } from "react-dom";
 
-import MediaPopup from "./MediaPopup"; // Import the MediaPopup component
+import MediaPopup from "./MediaPopup"; // Ensure this component is defined in your project
 
-import { useAuth } from "@/hooks/useAuth";
-import { Memory } from "@/types";
+import { useAuth } from "@/hooks"; // Ensure this hook is defined in your project
+import { Memory } from "@/types"; // Ensure this type is defined in your project
 
 interface MapImageUploadProps {
   location: { latitude: number; longitude: number };
@@ -27,6 +27,42 @@ interface MapImageUploadProps {
   onClose: () => void;
 }
 
+const getFileType = (file: File): string => {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+
+  if (extension === "mov") {
+    return "video/quicktime";
+  }
+  if (extension === "mp4") {
+    return "video/mp4";
+  }
+
+  if (!file.type && extension) {
+    const mimeTypes: Record<string, string> = {
+      mp4: "video/mp4",
+      mov: "video/quicktime",
+      avi: "video/x-msvideo",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      gif: "image/gif",
+      webp: "image/webp",
+    };
+
+    return mimeTypes[extension] || file.type;
+  }
+
+  return file.type;
+};
+
+const isVideoFile = (file: File): boolean => {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+
+  return (
+    extension === "mov" || extension === "mp4" || file.type.startsWith("video/")
+  );
+};
+
 const MapImageUpload: React.FC<MapImageUploadProps> = ({
   location,
   onUpload,
@@ -35,6 +71,7 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
   const { user, profile } = useAuth();
   const [files, setFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [fileTypes, setFileTypes] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [voiceMessage, setVoiceMessage] = useState<File | null>(null);
@@ -43,34 +80,95 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]);
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
+    console.log(
+      "Accepted files:",
+      acceptedFiles.map((f) => ({
+        name: f.name,
+        type: f.type,
+        size: f.size,
+      })),
+    );
+
     const MAX_SIZE = 5 * 1024 * 1024; // 5MB
-    const validFiles = acceptedFiles.filter((file) => file.size <= MAX_SIZE);
+    const validFiles = acceptedFiles.filter((file) => {
+      console.log("Processing file:", {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        extension: file.name.split(".").pop()?.toLowerCase(),
+      });
 
-    // Notify user about files that are too large
-    const tooLargeFiles = acceptedFiles.filter((file) => file.size > MAX_SIZE);
+      if (file.size > MAX_SIZE) {
+        toast.error(`File ${file.name} is too large (max 5MB)`);
 
-    if (tooLargeFiles.length > 0) {
-      toast.error(
-        "Some files were too large. Maximum size is 5MB per image/video.",
-      );
+        return false;
+      }
+
+      if (isVideoFile(file)) {
+        console.log("Video file detected:", file.name);
+
+        return true;
+      }
+
+      if (file.type.startsWith("image/")) {
+        console.log("Image file detected:", file.name);
+
+        return true;
+      }
+
+      toast.error(`File type not supported: ${file.name}`);
+
+      return false;
+    });
+
+    if (validFiles.length === 0) {
+      return;
     }
 
-    // Update state with valid files
-    setFiles((prevFiles) => [...prevFiles, ...validFiles]);
-    const newUrls = validFiles.map((file) => URL.createObjectURL(file));
+    validFiles.forEach((file) => {
+      const fileType = getFileType(file);
 
-    setPreviewUrls((prevUrls) => [...prevUrls, ...newUrls]);
+      setFileTypes((prev) => [...prev, fileType]);
+      setFiles((prev) => [...prev, file]);
+
+      const url = URL.createObjectURL(file);
+
+      setPreviewUrls((prev) => [...prev, url]);
+
+      console.log("Added file:", {
+        name: file.name,
+        type: fileType,
+        url: url,
+      });
+    });
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       "image/*": [".jpeg", ".jpg", ".png", ".gif", ".webp"],
-      "video/*": [".mp4", ".mov", ".avi"],
+      "video/quicktime": [".mov"],
+      "video/mp4": [".mp4"],
+      "video/*": [".mov", ".mp4", ".avi"],
     },
     maxFiles: 5,
     maxSize: 5 * 1024 * 1024,
+    onDropRejected: (fileRejections) => {
+      console.log("Rejected files:", fileRejections);
+      fileRejections.forEach(({ file, errors }) => {
+        console.log("Rejected file:", file.name, file.type, errors);
+      });
+    },
+    onError: (error) => {
+      console.error("Dropzone error:", error);
+    },
   });
 
   const uploadFilesToFirebase = async (): Promise<{
@@ -82,15 +180,27 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
     const uploadedVideoUrls: string[] = [];
 
     for (const file of files) {
-      const storageRef = ref(storage, `memories/${uuidv4()}-${file.name}`);
+      try {
+        console.log("Uploading file:", {
+          name: file.name,
+          type: getFileType(file),
+          size: file.size,
+        });
 
-      await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(storageRef);
+        const storageRef = ref(storage, `memories/${uuidv4()}-${file.name}`);
 
-      if (file.type.startsWith("image/")) {
-        uploadedImageUrls.push(downloadUrl);
-      } else if (file.type.startsWith("video/")) {
-        uploadedVideoUrls.push(downloadUrl);
+        await uploadBytes(storageRef, file);
+        const downloadUrl = await getDownloadURL(storageRef);
+
+        if (isVideoFile(file)) {
+          uploadedVideoUrls.push(downloadUrl);
+        } else {
+          uploadedImageUrls.push(downloadUrl);
+        }
+      } catch (error) {
+        console.error("Error uploading file:", file.name, error);
+        toast.error(`Error uploading ${file.name}`);
+        throw error;
       }
     }
 
@@ -103,11 +213,19 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
     const file = e.target.files?.[0];
 
     if (file && file.size <= 5 * 1024 * 1024) {
-      // 5MB limit
       setVoiceMessage(file);
     } else {
       toast.error("Voice message must be less than 5MB.");
     }
+  };
+
+  const handleVideoError = (
+    e: React.SyntheticEvent<HTMLVideoElement, Event>,
+  ) => {
+    console.error("Video error:", e);
+    toast.error(
+      "Error loading video preview. The format may not be supported by your browser.",
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,7 +262,6 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
         );
 
         await uploadBytes(voiceRef, voiceMessage);
-
         voiceMessageUrl = await getDownloadURL(voiceRef);
       }
 
@@ -154,7 +271,7 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
         location,
         imageUrls,
         videoUrls,
-        voiceMessageUrl, // Include voice message URL
+        voiceMessageUrl,
         notes: notes.trim(),
       });
 
@@ -235,7 +352,7 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
               </div>
             </div>
 
-            {/* Image/Video Upload Section */}
+            {/* Upload Section */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-700">
                 Capsule Contents
@@ -261,7 +378,78 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
               </div>
             </div>
 
-            {/* Voice Message Upload Section */}
+            {/* Preview Grid */}
+            {previewUrls.length > 0 && (
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Preview Contents
+                </label>
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {previewUrls.map((url, index) => (
+                      <div key={index} className="relative group">
+                        <div className="relative w-full pb-[100%]">
+                          <div className="absolute inset-0">
+                            {isVideoFile(files[index]) ? (
+                              <div className="relative w-full h-full">
+                                <video
+                                  controls
+                                  className="absolute inset-0 w-full h-full object-cover rounded-lg"
+                                  onClick={() => openMediaPopup(url, "video")}
+                                  onError={handleVideoError}
+                                >
+                                  <source
+                                    src={url}
+                                    type={getFileType(files[index])}
+                                  />
+                                  <source src={url} type="video/quicktime" />
+                                  <source src={url} type="video/mp4" />
+                                  Your browser does not support the video tag.
+                                </video>
+                                <div
+                                  className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded-lg group-hover:bg-opacity-20 transition-all"
+                                  style={{ pointerEvents: "none" }}
+                                >
+                                  <HiPlay className="w-12 h-12 text-white opacity-80 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              </div>
+                            ) : (
+                              <Image
+                                fill
+                                alt={`Preview ${index + 1}`}
+                                className="object-cover rounded-lg transform transition-transform group-hover:scale-102 cursor-pointer"
+                                src={url}
+                                onClick={() => openMediaPopup(url, "image")}
+                              />
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10"
+                          type="button"
+                          onClick={() => {
+                            setFiles((prev) =>
+                              prev.filter((_, i) => i !== index),
+                            );
+                            setPreviewUrls((prev) =>
+                              prev.filter((_, i) => i !== index),
+                            );
+                            setFileTypes((prev) =>
+                              prev.filter((_, i) => i !== index),
+                            );
+                            URL.revokeObjectURL(url);
+                          }}
+                        >
+                          <HiX className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Voice Message Upload */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-700">
                 Voice Message (optional)
@@ -273,61 +461,6 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
                 onChange={handleVoiceMessageUpload}
               />
             </div>
-
-            {/* Image and Video Preview Grid */}
-            {previewUrls.length > 0 && (
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
-                  Preview Contents
-                </label>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    {files.map((file, index) => (
-                      <div key={index} className="relative group">
-                        <div className="relative w-full pb-[100%]">
-                          <div className="absolute inset-0">
-                            {file.type.startsWith("video/") ? (
-                              <video
-                                controls
-                                className="object-cover rounded-lg cursor-pointer"
-                                src={previewUrls[index]}
-                                onClick={() =>
-                                  openMediaPopup(previewUrls[index], "video")
-                                }
-                              />
-                            ) : (
-                              <Image
-                                fill
-                                alt={`Preview ${index + 1}`}
-                                className="object-cover rounded-lg transform transition-transform group-hover:scale-102 cursor-pointer"
-                                src={previewUrls[index]}
-                                onClick={() =>
-                                  openMediaPopup(previewUrls[index], "image")
-                                }
-                              />
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                          type="button"
-                          onClick={() => {
-                            setFiles((prev) =>
-                              prev.filter((_, i) => i !== index),
-                            );
-                            setPreviewUrls((prev) =>
-                              prev.filter((_, i) => i !== index),
-                            );
-                          }}
-                        >
-                          <HiX className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Notes Section */}
             <div className="space-y-2">
@@ -345,9 +478,9 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-between gap-3 pt-4">
               <button
-                className="px-6 py-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors font-medium"
+                className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors font-medium"
                 disabled={uploading}
                 type="button"
                 onClick={onClose}
