@@ -14,10 +14,14 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 import { createPortal } from "react-dom";
 
-import MediaPopup from "./MediaPopup"; // Ensure this component is defined in your project
+import MediaPopup from "./MediaPopup";
 
-import { useAuth } from "@/hooks"; // Ensure this hook is defined in your project
-import { Memory } from "@/types"; // Ensure this type is defined in your project
+import { useAuth } from "@/hooks";
+import { Memory } from "@/types";
+
+// Constants
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 
 interface MapImageUploadProps {
   location: { latitude: number; longitude: number };
@@ -27,39 +31,32 @@ interface MapImageUploadProps {
   onClose: () => void;
 }
 
+// Helper Functions
 const getFileType = (file: File): string => {
   const extension = file.name.split(".").pop()?.toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    avi: "video/x-msvideo",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+  };
 
-  if (extension === "mov") {
-    return "video/quicktime";
-  }
-  if (extension === "mp4") {
-    return "video/mp4";
-  }
+  if (extension === "mov") return "video/quicktime";
+  if (extension === "mp4") return "video/mp4";
 
-  if (!file.type && extension) {
-    const mimeTypes: Record<string, string> = {
-      mp4: "video/mp4",
-      mov: "video/quicktime",
-      avi: "video/x-msvideo",
-      jpg: "image/jpeg",
-      jpeg: "image/jpeg",
-      png: "image/png",
-      gif: "image/gif",
-      webp: "image/webp",
-    };
-
-    return mimeTypes[extension] || file.type;
-  }
-
-  return file.type;
+  return mimeTypes[extension || ""] || file.type || "application/octet-stream";
 };
 
 const isVideoFile = (file: File): boolean => {
   const extension = file.name.split(".").pop()?.toLowerCase();
 
   return (
-    extension === "mov" || extension === "mp4" || file.type.startsWith("video/")
+    ["mov", "mp4", "avi"].includes(extension || "") ||
+    file.type.startsWith("video/")
   );
 };
 
@@ -96,50 +93,35 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
       })),
     );
 
-    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
     const validFiles = acceptedFiles.filter((file) => {
-      console.log("Processing file:", {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        extension: file.name.split(".").pop()?.toLowerCase(),
-      });
+      const isVideo = isVideoFile(file);
+      const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
 
-      if (file.size > MAX_SIZE) {
-        toast.error(`File ${file.name} is too large (max 5MB)`);
+      if (file.size > maxSize) {
+        toast.error(
+          `File ${file.name} is too large (max ${isVideo ? "50MB" : "5MB"})`,
+        );
 
         return false;
       }
 
-      if (isVideoFile(file)) {
-        console.log("Video file detected:", file.name);
+      if (!isVideo && !file.type.startsWith("image/")) {
+        toast.error(`File type not supported: ${file.name}`);
 
-        return true;
+        return false;
       }
 
-      if (file.type.startsWith("image/")) {
-        console.log("Image file detected:", file.name);
-
-        return true;
-      }
-
-      toast.error(`File type not supported: ${file.name}`);
-
-      return false;
+      return true;
     });
 
-    if (validFiles.length === 0) {
-      return;
-    }
+    if (validFiles.length === 0) return;
 
     validFiles.forEach((file) => {
       const fileType = getFileType(file);
-
-      setFileTypes((prev) => [...prev, fileType]);
-      setFiles((prev) => [...prev, file]);
-
       const url = URL.createObjectURL(file);
 
+      setFiles((prev) => [...prev, file]);
+      setFileTypes((prev) => [...prev, fileType]);
       setPreviewUrls((prev) => [...prev, url]);
 
       console.log("Added file:", {
@@ -159,17 +141,66 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
       "video/*": [".mov", ".mp4", ".avi"],
     },
     maxFiles: 5,
-    maxSize: 5 * 1024 * 1024,
+    maxSize: MAX_VIDEO_SIZE,
     onDropRejected: (fileRejections) => {
-      console.log("Rejected files:", fileRejections);
       fileRejections.forEach(({ file, errors }) => {
         console.log("Rejected file:", file.name, file.type, errors);
+        const errorMessages = errors.map((e) => {
+          switch (e.code) {
+            case "file-too-large":
+              return `File ${file.name} is too large`;
+            case "file-invalid-type":
+              return `File type not supported: ${file.name}`;
+            default:
+              return e.message;
+          }
+        });
+
+        toast.error(errorMessages.join(", "));
       });
     },
-    onError: (error) => {
-      console.error("Dropzone error:", error);
-    },
   });
+
+  const handleVideoError = (
+    e: React.SyntheticEvent<HTMLVideoElement, Event>,
+    index: number,
+  ) => {
+    const videoElement = e.target as HTMLVideoElement;
+    const error = videoElement.error;
+    const file = files[index];
+
+    console.error("Video error:", {
+      file: file.name,
+      type: file.type,
+      error: error?.code,
+      message: error?.message,
+    });
+
+    let errorMessage = "Error loading video preview. ";
+
+    if (error) {
+      switch (error.code) {
+        case MediaError.MEDIA_ERR_ABORTED:
+          errorMessage += "The video playback was aborted.";
+          break;
+        case MediaError.MEDIA_ERR_NETWORK:
+          errorMessage += "A network error occurred while loading the video.";
+          break;
+        case MediaError.MEDIA_ERR_DECODE:
+          errorMessage += "The video format is not supported by your browser.";
+          break;
+        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          errorMessage += "The video format or MIME type is not supported.";
+          break;
+        default:
+          errorMessage += "An unknown error occurred.";
+      }
+    } else {
+      errorMessage += "Please try a different video format (e.g., MP4).";
+    }
+
+    toast.error(errorMessage);
+  };
 
   const uploadFilesToFirebase = async (): Promise<{
     imageUrls: string[];
@@ -181,18 +212,25 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
 
     for (const file of files) {
       try {
-        console.log("Uploading file:", {
-          name: file.name,
-          type: getFileType(file),
-          size: file.size,
-        });
+        const isVideo = isVideoFile(file);
+        const folder = isVideo ? "videos" : "images";
+        const storageRef = ref(
+          storage,
+          `memories/${folder}/${uuidv4()}-${file.name}`,
+        );
 
-        const storageRef = ref(storage, `memories/${uuidv4()}-${file.name}`);
+        const metadata = {
+          contentType: getFileType(file),
+          customMetadata: {
+            originalName: file.name,
+            fileSize: file.size.toString(),
+          },
+        };
 
-        await uploadBytes(storageRef, file);
-        const downloadUrl = await getDownloadURL(storageRef);
+        const snapshot = await uploadBytes(storageRef, file, metadata);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
 
-        if (isVideoFile(file)) {
+        if (isVideo) {
           uploadedVideoUrls.push(downloadUrl);
         } else {
           uploadedImageUrls.push(downloadUrl);
@@ -207,25 +245,25 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
     return { imageUrls: uploadedImageUrls, videoUrls: uploadedVideoUrls };
   };
 
-  const handleVoiceMessageUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleVoiceMessageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
-    if (file && file.size <= 5 * 1024 * 1024) {
-      setVoiceMessage(file);
-    } else {
-      toast.error("Voice message must be less than 5MB.");
-    }
-  };
+    if (!file) return;
 
-  const handleVideoError = (
-    e: React.SyntheticEvent<HTMLVideoElement, Event>,
-  ) => {
-    console.error("Video error:", e);
-    toast.error(
-      "Error loading video preview. The format may not be supported by your browser.",
-    );
+    if (!file.type.startsWith("audio/")) {
+      toast.error("Please upload an audio file");
+
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      toast.error("Voice message must be less than 5MB");
+
+      return;
+    }
+
+    setVoiceMessage(file);
+    toast.success("Voice message added successfully");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -258,10 +296,18 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
         const storage = getStorage();
         const voiceRef = ref(
           storage,
-          `memories/${uuidv4()}-${voiceMessage.name}`,
+          `memories/voice/${uuidv4()}-${voiceMessage.name}`,
         );
 
-        await uploadBytes(voiceRef, voiceMessage);
+        const metadata = {
+          contentType: voiceMessage.type,
+          customMetadata: {
+            originalName: voiceMessage.name,
+            fileSize: voiceMessage.size.toString(),
+          },
+        };
+
+        await uploadBytes(voiceRef, voiceMessage, metadata);
         voiceMessageUrl = await getDownloadURL(voiceRef);
       }
 
@@ -347,7 +393,9 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
               <div>
                 <p className="text-sm font-medium text-gray-700">Location</p>
                 <p className="text-xs text-gray-500">
-                  {`${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`}
+                  {`${location.latitude.toFixed(6)}, ${location.longitude.toFixed(
+                    6,
+                  )}`}
                 </p>
               </div>
             </div>
@@ -369,10 +417,10 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
                 <div className="text-center">
                   <HiPhotograph className="mx-auto h-12 w-12 text-gray-400" />
                   <p className="mt-2 text-sm text-gray-600">
-                    Drop your memories here (images or videos)
+                    Drop your memories here
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Up to 5 files (max 5MB each)
+                    Images (max 5MB) or Videos (max 50MB)
                   </p>
                 </div>
               </div>
@@ -396,14 +444,12 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
                                   controls
                                   className="absolute inset-0 w-full h-full object-cover rounded-lg"
                                   onClick={() => openMediaPopup(url, "video")}
-                                  onError={handleVideoError}
+                                  onError={(e) => handleVideoError(e, index)}
                                 >
                                   <source
                                     src={url}
                                     type={getFileType(files[index])}
                                   />
-                                  <source src={url} type="video/quicktime" />
-                                  <source src={url} type="video/mp4" />
                                   Your browser does not support the video tag.
                                 </video>
                                 <div

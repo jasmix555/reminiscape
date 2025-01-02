@@ -1,37 +1,45 @@
-// components/MediaPopup.tsx
+// MediaPopup.tsx
 import React from "react";
+import { HiX } from "react-icons/hi";
 
 interface MediaPopupProps {
-  mediaUrl: string;
   mediaType: "image" | "video";
+  mediaUrl: string;
   onClose: () => void;
 }
 
 const MediaPopup: React.FC<MediaPopupProps> = ({
-  mediaUrl,
   mediaType,
+  mediaUrl,
   onClose,
 }) => {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[1000]">
-      <div className="relative max-w-3xl max-h-full">
-        <button
-          className="absolute top-4 right-4 text-white text-2xl"
-          onClick={onClose}
-        >
-          &times;
-        </button>
-        {mediaType === "video" ? (
-          <video controls className="w-full h-auto rounded-lg">
-            <source src={mediaUrl} type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
-        ) : (
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[1001]">
+      <button
+        className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full"
+        onClick={onClose}
+      >
+        <HiX className="w-6 h-6" />
+      </button>
+
+      <div className="max-w-[90vw] max-h-[90vh]">
+        {mediaType === "image" ? (
           <img
-            alt="Preview"
-            className="w-full h-auto rounded-lg"
+            alt="Full size preview"
+            className="max-w-full max-h-[90vh] object-contain"
             src={mediaUrl}
           />
+        ) : (
+          <video
+            autoPlay
+            controls
+            playsInline
+            className="max-w-full max-h-[90vh]"
+          >
+            <source src={mediaUrl} type="video/mp4" />
+            <source src={mediaUrl} type="video/quicktime" />
+            Your browser does not support the video tag.
+          </video>
         )}
       </div>
     </div>

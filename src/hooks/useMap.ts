@@ -1,8 +1,9 @@
 // hooks/useMap.ts
 import { useEffect, useState, useRef } from "react";
-import { useAuth, useMemories } from "@/hooks/";
 import toast from "react-hot-toast";
-import { Memory } from "@/types"; // Adjust the import based on your project structure
+
+import { useAuth, useMemories } from "@/hooks/";
+import { Memory } from "@/types";
 
 interface UserLocation {
   longitude: number;
@@ -27,7 +28,7 @@ const useMap = () => {
   });
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isFollowingUser, setIsFollowingUser] = useState<boolean>(false);
-  const geolocateControlRef = useRef<any>(null); // Adjust type if you have a specific type for GeolocateControl
+  const geolocateControlRef = useRef<any>(null);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
