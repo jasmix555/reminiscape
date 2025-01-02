@@ -3,6 +3,7 @@
 export { default as Header } from "./Header";
 export { default as LogoutButton } from "./Logout";
 export { Loading } from "./Loading";
+export { default as ErrorBoundary } from "./ErrorBoundary";
 
 export * from "./ProfileImageUpload";
 

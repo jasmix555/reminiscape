@@ -4,13 +4,12 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { Loading, Map } from "@/components";
+import { Loading, Map, ErrorBoundary } from "@/components";
 import { useAuth } from "@/hooks";
 
 export default function HomePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading } = useAuth(); // Remove duplicate loading declaration
   const router = useRouter();
-  const { loading } = useAuth();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -18,12 +17,14 @@ export default function HomePage() {
     }
   }, [loading, user, router]);
 
-  if (authLoading || loading) return <Loading />;
+  if (loading) return <Loading />;
   if (!user) return null;
 
   return (
     <main className="absolute inset-0 overflow-hidden">
-      <Map />
+      <ErrorBoundary>
+        <Map />
+      </ErrorBoundary>
     </main>
   );
 }
