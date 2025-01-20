@@ -4,7 +4,6 @@ export interface Location {
   longitude: number;
 }
 
-// src/types/index.ts
 export interface UserProfile {
   uid: string;
   email: string;
@@ -12,6 +11,9 @@ export interface UserProfile {
   photoURL?: string;
   createdAt: Date;
   updatedAt: Date;
+  friends: string[]; // Array of UIDs of the friends
+  friendRequests: string[]; // Array of UIDs of the users who sent a friend request
+  requestSent: boolean;
 }
 
 export interface Memory {

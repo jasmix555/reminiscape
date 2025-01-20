@@ -41,7 +41,6 @@ export function useAuth() {
             setProfile(userData);
             setIsProfileIncomplete(!checkProfileCompletion(userData));
 
-            // Redirect logic
             const currentPath = window.location.pathname;
 
             if (["/welcome", "/login", "/register"].includes(currentPath)) {

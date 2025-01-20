@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { uploadProfileImage } from "@/libs/profileUtils";
 import { auth } from "@/libs/firebaseConfig";
 import { useProfile } from "@/hooks";
-import { ProfileImageUpload, Loading } from "@/components";
+import { ProfileImageUpload, Loading, LogoutButton } from "@/components";
 
 const db = getFirestore();
 
@@ -101,7 +101,7 @@ export default function SetupProfilePage() {
   }
 
   return (
-    <div className="flex h-screen items-center justify-center ">
+    <div className="flex h-screen items-center justify-center flex-col">
       <div className="container mx-auto max-w-md rounded-lg bg-white p-8 shadow-md">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-gray-800 text-center">
@@ -170,6 +170,7 @@ export default function SetupProfilePage() {
           </div>
         </form>
       </div>
+      <LogoutButton />
     </div>
   );
 }

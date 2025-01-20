@@ -8,10 +8,11 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore"; // Firestore functions
 import Image from "next/image";
 
 import { useAuth } from "@/hooks";
-import { auth } from "@/libs/firebaseConfig";
+import { auth, db } from "@/libs/firebaseConfig"; // Import Firestore config
 import { Loading } from "@/components";
 
 export default function Register() {
@@ -35,6 +36,17 @@ export default function Register() {
       );
       const user = userCredential.user;
 
+      // Store user data in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        email: user.email,
+        username: email.split("@")[0], // Basic username logic
+        photoURL: "", // Default placeholder for profile picture
+        bio: "", // Default bio
+        friends: [], // Initialize an empty friends array
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
       await sendEmailVerification(user);
       setIsConfirming(true);
       startTimer();
@@ -54,12 +66,31 @@ export default function Register() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      if (user && !user.emailVerified) {
-        await sendEmailVerification(user);
-        setIsConfirming(true);
-        startTimer();
-      } else {
-        router.push("/setup-profile");
+      if (user) {
+        // Store user data in Firestore if new user
+        const userDoc = doc(db, "users", user.uid);
+
+        await setDoc(
+          userDoc,
+          {
+            email: user.email,
+            username: user.displayName || user.email?.split("@")[0],
+            photoURL: user.photoURL || "",
+            bio: "",
+            friends: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }, // Prevent overwriting existing data
+        );
+
+        if (!user.emailVerified) {
+          await sendEmailVerification(user);
+          setIsConfirming(true);
+          startTimer();
+        } else {
+          router.push("/setup-profile");
+        }
       }
     } catch (error) {
       setError("Google Sign-Up failed.");
