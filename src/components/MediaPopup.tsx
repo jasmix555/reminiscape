@@ -1,4 +1,3 @@
-// MediaPopup.tsx
 import React from "react";
 import { HiX } from "react-icons/hi";
 
@@ -14,15 +13,24 @@ const MediaPopup: React.FC<MediaPopupProps> = ({
   onClose,
 }) => {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[1001]">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[1001]"
+      onClick={onClose}
+    >
       <button
         className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full"
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
       >
         <HiX className="w-6 h-6" />
       </button>
 
-      <div className="max-w-[90vw] max-h-[90vh]">
+      <div
+        className="max-w-[90vw] max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {mediaType === "image" ? (
           <img
             alt="Full size preview"

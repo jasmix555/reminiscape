@@ -7,12 +7,13 @@ import {
   addDoc,
   serverTimestamp,
   where,
-  orderBy,
 } from "firebase/firestore";
+import toast from "react-hot-toast";
+
+import { useAuth } from "./useAuth";
+
 import { db } from "@/libs";
 import { Memory } from "@/types";
-import { useAuth } from "./useAuth";
-import toast from "react-hot-toast";
 
 export const useMemories = () => {
   const { user, profile } = useAuth();
@@ -21,17 +22,19 @@ export const useMemories = () => {
   const [error, setError] = useState<string | null>(null);
 
   const loadMemories = useCallback(async () => {
-    // Don't try to load memories if user is not authenticated
-    if (!user) {
+    if (!user || !profile) {
       setMemories([]);
       setLoading(false);
+
       return;
     }
 
     try {
       const memoriesRef = collection(db, "memories");
-      // Create a query to get all memories or just user's memories
-      const memoriesQuery = query(memoriesRef, orderBy("createdAt", "desc"));
+      const memoriesQuery = query(
+        memoriesRef,
+        where("createdBy.uid", "in", [user.uid, ...(profile.friends || [])]), // Fetch own and friends' memories
+      );
 
       const memoriesSnapshot = await getDocs(memoriesQuery);
 
@@ -55,10 +58,10 @@ export const useMemories = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, profile]);
 
   const addMemory = async (
-    memoryData: Omit<Memory, "id" | "createdBy" | "createdAt" | "updatedAt">
+    memoryData: Omit<Memory, "id" | "createdBy" | "createdAt" | "updatedAt">,
   ) => {
     if (!user || !profile) {
       throw new Error("User must be authenticated to create memories");
@@ -78,7 +81,9 @@ export const useMemories = () => {
       };
 
       const docRef = await addDoc(memoriesRef, newMemoryData);
+
       await loadMemories(); // Refresh memories after adding new one
+
       return docRef.id;
     } catch (error: any) {
       console.error("Error adding memory:", error);
