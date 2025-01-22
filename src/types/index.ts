@@ -11,9 +11,9 @@ export interface UserProfile {
   photoURL?: string;
   createdAt: Date;
   updatedAt: Date;
-  friends: string[]; // Array of UIDs of the friends
-  friendRequests: string[]; // Array of UIDs of the users who sent a friend request
-  requestSent: boolean;
+  friends?: string[]; // Array of UIDs of the friends
+  friendRequests?: string[]; // Array of UIDs of the users who sent a friend request
+  requestSent?: boolean;
 }
 
 export interface Memory {
