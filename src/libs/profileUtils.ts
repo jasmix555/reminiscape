@@ -108,6 +108,7 @@ export const uploadProfileImage = async (uid: string, file: File) => {
     if (oldPhotoURL) {
       try {
         const oldImageRef = ref(storage, oldPhotoURL);
+
         await deleteObject(oldImageRef);
       } catch (error) {
         console.warn(
