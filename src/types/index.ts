@@ -31,6 +31,7 @@ export interface Memory {
   createdBy: UserProfile;
   createdAt: Date;
   updatedAt: Date;
+  isUnlocked: boolean;
 }
 
 export interface Marker {

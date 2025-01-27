@@ -1,19 +1,14 @@
-"use client";
-import Link from "next/link";
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
-  GoogleAuthProvider,
-  signInWithPopup,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore"; // Firestore functions
-import Image from "next/image";
+import { doc, setDoc } from "firebase/firestore";
 
-import { useAuth } from "@/hooks";
 import { auth, db } from "@/libs/firebaseConfig"; // Import Firestore config
 import { Loading } from "@/components";
+import { useAuth } from "@/hooks";
 
 export default function Register() {
   const { loading } = useAuth();
@@ -22,7 +17,6 @@ export default function Register() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timer, setTimer] = useState<number | null>(null);
-  const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
   const router = useRouter();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -47,6 +41,7 @@ export default function Register() {
         updatedAt: new Date().toISOString(),
       });
 
+      // Send email verification
       await sendEmailVerification(user);
       setIsConfirming(true);
       startTimer();
@@ -55,48 +50,6 @@ export default function Register() {
         error instanceof Error ? error.message : "An unknown error occurred",
       );
       console.error("Signup Error:", error);
-    }
-  };
-
-  const handleGoogleSignUp = async () => {
-    const provider = new GoogleAuthProvider();
-
-    setIsGoogleLoading(true);
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      if (user) {
-        // Store user data in Firestore if new user
-        const userDoc = doc(db, "users", user.uid);
-
-        await setDoc(
-          userDoc,
-          {
-            email: user.email,
-            username: user.displayName || user.email?.split("@")[0],
-            photoURL: user.photoURL || "",
-            bio: "",
-            friends: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }, // Prevent overwriting existing data
-        );
-
-        if (!user.emailVerified) {
-          await sendEmailVerification(user);
-          setIsConfirming(true);
-          startTimer();
-        } else {
-          router.push("/setup-profile");
-        }
-      }
-    } catch (error) {
-      setError("Google Sign-Up failed.");
-      console.error("Google Sign-Up Error:", error);
-    } finally {
-      setIsGoogleLoading(false);
     }
   };
 
@@ -124,10 +77,10 @@ export default function Register() {
         const user = auth.currentUser;
 
         if (user) {
-          await user.reload();
+          await user.reload(); // Reload to get updated user data
           if (user.emailVerified) {
             clearInterval(interval);
-            router.push("/setup-profile");
+            router.push("/setup-profile"); // Redirect after email is verified
           }
         }
       }, 3000);
@@ -190,35 +143,6 @@ export default function Register() {
           >
             Verify Email Address
           </button>
-
-          <div className="my-4 flex items-center">
-            <hr className="flex-grow border-t border-gray-300" />
-            <span className="mx-4 text-gray-500">or</span>
-            <hr className="flex-grow border-t border-gray-300" />
-          </div>
-
-          <button
-            aria-label="Sign up with Google"
-            className={`flex w-full items-center justify-center gap-2 rounded border border-gray-300 bg-white py-2 font-bold text-gray-700 transition ${
-              isGoogleLoading ? "cursor-not-allowed opacity-50" : ""
-            }`}
-            disabled={isGoogleLoading}
-            onClick={handleGoogleSignUp}
-          >
-            <Image alt="Google" height={24} src="/google.svg" width={24} />
-            <span>
-              {isGoogleLoading ? "Signing up..." : "Sign up with Google"}
-            </span>
-          </button>
-
-          <div className="mt-4 text-center">
-            <p className="text-lg">
-              Already have an account?{" "}
-              <Link className="font-bold text-yellow-900" href="/login">
-                Log in
-              </Link>
-            </p>
-          </div>
         </form>
       ) : (
         <div className="text-center">

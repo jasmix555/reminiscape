@@ -1,4 +1,3 @@
-// hooks/useMemories.ts
 import { useState, useCallback, useEffect } from "react";
 import {
   collection,
@@ -31,15 +30,16 @@ export const useMemories = () => {
 
     try {
       const memoriesRef = collection(db, "memories");
+
       const memoriesQuery = query(
         memoriesRef,
-        where("createdBy.uid", "in", [user.uid, ...(profile.friends || [])]), // Fetch own and friends' memories
+        where("createdBy.uid", "in", [user.uid, ...(profile.friends || [])]),
       );
 
-      const memoriesSnapshot = await getDocs(memoriesQuery);
+      const snapshot = await getDocs(memoriesQuery);
 
-      if (!memoriesSnapshot.empty) {
-        const fetchedMemories = memoriesSnapshot.docs.map((doc) => ({
+      if (!snapshot.empty) {
+        const fetchedMemories = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate(),
@@ -52,8 +52,8 @@ export const useMemories = () => {
         setMemories([]);
       }
     } catch (error: any) {
-      console.error("Error loading memories:", error);
-      setError(error.message || "Failed to load memories");
+      console.error("Error loading memories:", error.code, error.message);
+      setError(error.message || "Failed to load memories.");
       toast.error("Failed to load memories. Please try again later.");
     } finally {
       setLoading(false);
@@ -69,6 +69,7 @@ export const useMemories = () => {
 
     try {
       const memoriesRef = collection(db, "memories");
+
       const newMemoryData = {
         ...memoryData,
         createdBy: {
@@ -82,12 +83,12 @@ export const useMemories = () => {
 
       const docRef = await addDoc(memoriesRef, newMemoryData);
 
-      await loadMemories(); // Refresh memories after adding new one
+      await loadMemories();
 
       return docRef.id;
     } catch (error: any) {
-      console.error("Error adding memory:", error);
-      toast.error(error.message || "Failed to create memory");
+      console.error("Error adding memory:", error.code, error.message);
+      toast.error(error.message || "Failed to create memory.");
       throw error;
     }
   };
@@ -97,17 +98,16 @@ export const useMemories = () => {
       setLoading(true);
       loadMemories();
     }
-  }, [loadMemories, user]);
+  }, [user, loadMemories]);
 
-  // Load memories when user auth state changes
   useEffect(() => {
-    if (user) {
+    if (user && profile) {
       loadMemories();
     } else {
       setMemories([]);
       setLoading(false);
     }
-  }, [user, loadMemories]);
+  }, [user, profile, loadMemories]);
 
   return {
     memories,
