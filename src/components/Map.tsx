@@ -153,15 +153,14 @@ const MapComponent: React.FC = () => {
     setSelectedMemory(memory);
     setIsModalOpen(true);
 
-    // Fly to the marker's location and set zoom to 18
     if (mapRef.current) {
       mapRef.current.getMap().flyTo({
         center: [memory.location.longitude, memory.location.latitude],
         zoom: 16.45,
         pitch: 45,
         bearing: 0,
-        essential: true, // This ensures the animation is not interrupted
-        duration: 2000, // Duration of the flyTo animation
+        essential: true,
+        duration: 2000,
       });
     }
   };
@@ -173,14 +172,13 @@ const MapComponent: React.FC = () => {
         attributionControl={false}
         {...viewState}
         antialias={true}
-        mapStyle={process.env.NEXT_PUBLIC_MAPBOX_STYLE} // Use the environment variable for the style
-        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN} // Use the environment variable for the token
+        mapStyle={process.env.NEXT_PUBLIC_MAPBOX_STYLE}
+        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
         maxPitch={85}
         style={mapStyles}
         onLoad={(event) => {
           const map = event.target;
 
-          // Add 3D buildings layer
           const style = map.getStyle();
           const layers = style?.layers;
 
@@ -229,7 +227,6 @@ const MapComponent: React.FC = () => {
         }}
         onMove={handleMapMove}
       >
-        {/* Custom Controls */}
         <div className="absolute right-4 bottom-4 z-10 flex flex-col gap-2">
           <button
             className={`p-2 rounded-full shadow-lg transition-all duration-300 ${
@@ -251,7 +248,6 @@ const MapComponent: React.FC = () => {
           </div>
         </div>
 
-        {/* Hidden GeolocateControl */}
         <div className="hidden">
           <GeolocateControl
             ref={geolocateControlRef}
@@ -265,7 +261,6 @@ const MapComponent: React.FC = () => {
           />
         </div>
 
-        {/* User Location Marker */}
         {userLocation && (
           <Marker
             anchor="center"
@@ -276,7 +271,6 @@ const MapComponent: React.FC = () => {
           </Marker>
         )}
 
-        {/* Memory Markers */}
         {memories.map((memory) => (
           <Marker
             key={memory.id}
@@ -305,7 +299,6 @@ const MapComponent: React.FC = () => {
           </Marker>
         ))}
 
-        {/* Modal for Memory Details */}
         <MarkerModal
           isOpen={isModalOpen}
           memory={selectedMemory}
@@ -313,7 +306,6 @@ const MapComponent: React.FC = () => {
         />
       </Map>
 
-      {/* Create Memory Button */}
       <button
         className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10 
                   bg-blue-500 text-white px-6 py-3 rounded-full shadow-lg 
@@ -325,7 +317,6 @@ const MapComponent: React.FC = () => {
         Create Memory
       </button>
 
-      {/* Upload Modal */}
       {showUploadModal && userLocation && (
         <MapImageUpload
           location={userLocation}

@@ -90,18 +90,41 @@ const FriendsPage = () => {
       return;
     }
 
+    if (!user?.uid) {
+      toast.error("User is not authenticated.");
+
+      return;
+    }
+
     setAddingFriend(receiverId);
 
     try {
       const receiverRef = doc(db, "users", receiverId);
 
+      // Check if the friendRequests array already contains the current user's UID
+      const receiverDoc = await getDoc(receiverRef);
+
+      if (receiverDoc.exists()) {
+        const receiverData = receiverDoc.data();
+
+        if (
+          receiverData.friendRequests &&
+          receiverData.friendRequests.includes(user?.uid)
+        ) {
+          toast.error("Friend request already sent!");
+
+          return; // Exit if the request has already been sent
+        }
+      }
+
+      // Add the current user's UID to the receiver's friendRequests array
       await updateDoc(receiverRef, {
         friendRequests: arrayUnion(user?.uid || ""),
       });
 
       toast.success("Friend request sent!");
 
-      // Set the button to 'Request Sent' state
+      // Update the UI for search results (mark as request sent)
       setSearchResults((prevResults) =>
         prevResults.map((result) =>
           result.uid === receiverId ? { ...result, requestSent: true } : result,
@@ -136,7 +159,6 @@ const FriendsPage = () => {
           } as UserProfile);
         }
       }
-
       setFriends(friendsList);
     } catch (error) {
       console.error("Error fetching friends:", error);
@@ -165,7 +187,6 @@ const FriendsPage = () => {
           } as UserProfile);
         }
       }
-
       setFriendRequests(requestsList);
     } catch (error) {
       console.error("Error fetching friend requests:", error);
