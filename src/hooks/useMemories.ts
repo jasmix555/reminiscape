@@ -44,6 +44,7 @@ export const useMemories = () => {
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate(),
           updatedAt: doc.data().updatedAt?.toDate(),
+          isUnlocked: doc.data().createdBy.uid === user.uid, // Automatically unlock for the current user
         })) as Memory[];
 
         setMemories(fetchedMemories);

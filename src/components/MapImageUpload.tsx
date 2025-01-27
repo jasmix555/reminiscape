@@ -13,17 +13,21 @@ import toast from "react-hot-toast";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 import { createPortal } from "react-dom";
+import { User } from "firebase/auth";
 
 import MediaPopup from "./MediaPopup";
 
 import { useAuth } from "@/hooks";
-import { Memory } from "@/types";
+import { Memory, UserProfile } from "@/types";
 
 // Constants
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 
 interface MapImageUploadProps {
+  user: User | null; // Add this line
+  profile: UserProfile | null;
+  isOpen: boolean;
   location: { latitude: number; longitude: number };
   onUpload: (
     memoryData: Omit<Memory, "id" | "createdBy" | "createdAt" | "updatedAt">,
@@ -319,6 +323,7 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
         videoUrls,
         voiceMessageUrl,
         notes: notes.trim(),
+        isUnlocked: false,
       });
 
       toast.success("Memory created successfully!");
@@ -393,9 +398,9 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
               <div>
                 <p className="text-sm font-medium text-gray-700">Location</p>
                 <p className="text-xs text-gray-500">
-                  {`${location.latitude.toFixed(6)}, ${location.longitude.toFixed(
-                    6,
-                  )}`}
+                  {location
+                    ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`
+                    : "Location not available"}
                 </p>
               </div>
             </div>

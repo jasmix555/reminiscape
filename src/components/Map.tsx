@@ -1,15 +1,17 @@
 import React, { useEffect, useState, useRef } from "react";
 import Map, { Marker, NavigationControl, GeolocateControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { HiLocationMarker, HiPlus } from "react-icons/hi";
+import { HiLocationMarker, HiPlus, HiLockClosed } from "react-icons/hi";
 import Image from "next/image";
 import toast from "react-hot-toast";
+import { getDistance } from "geolib"; // Install: npm install geolib
 
 import MapImageUpload from "./MapImageUpload";
 import MarkerModal from "./MarkerModal";
 
 import { Memory } from "@/types";
 import { useAuth, useMemories } from "@/hooks";
+// Import memoryService
 
 const mapStyles = {
   touchAction: "none",
@@ -18,6 +20,7 @@ const mapStyles = {
 };
 
 const MapComponent: React.FC = () => {
+  const RADIUS = 100; // Define proximity radius in meters
   const { user, profile } = useAuth();
   const { memories, loading, addMemory, refreshMemories } = useMemories();
   const [viewState, setViewState] = useState({
@@ -149,19 +152,62 @@ const MapComponent: React.FC = () => {
     }
   };
 
-  const handleMarkerClick = (memory: Memory) => {
-    setSelectedMemory(memory);
-    setIsModalOpen(true);
+  const unlockMemory = (memory: Memory | null) => {
+    if (memory) {
+      memory.isUnlocked = true; // Update the memory state to unlocked
+      setSelectedMemory(memory); // Refresh modal
+      toast.success("Memory unlocked successfully!");
+    }
+  };
 
-    if (mapRef.current) {
-      mapRef.current.getMap().flyTo({
-        center: [memory.location.longitude, memory.location.latitude],
-        zoom: 16.45,
-        pitch: 45,
-        bearing: 0,
-        essential: true,
-        duration: 2000,
-      });
+  const handleMarkerClick = (memory: Memory) => {
+    if (
+      memory.location &&
+      memory.location.latitude &&
+      memory.location.longitude
+    ) {
+      if (!memory.isUnlocked) {
+        if (userLocation) {
+          const distance = getDistance(
+            {
+              latitude: userLocation.latitude,
+              longitude: userLocation.longitude,
+            },
+            {
+              latitude: memory.location.latitude,
+              longitude: memory.location.longitude,
+            },
+          );
+
+          if (distance <= RADIUS) {
+            setSelectedMemory(memory);
+            setIsModalOpen(true); // Show the modal to unlock
+          } else {
+            toast.error("You must be closer to unlock this memory!");
+          }
+        } else {
+          toast.error("Enable location services to access locked memories.");
+        }
+
+        return;
+      }
+
+      // For unlocked memories, show the memory modal
+      setSelectedMemory(memory);
+      setIsModalOpen(true);
+
+      if (mapRef.current) {
+        mapRef.current.getMap().flyTo({
+          center: [memory.location.longitude, memory.location.latitude],
+          zoom: 16.45,
+          pitch: 45,
+          bearing: 0,
+          essential: true,
+          duration: 2000,
+        });
+      }
+    } else {
+      toast.error("This memory doesn't have location data.");
     }
   };
 
@@ -275,7 +321,6 @@ const MapComponent: React.FC = () => {
           <Marker
             key={memory.id}
             anchor="bottom"
-            className="time-capsule-marker"
             latitude={memory.location.latitude}
             longitude={memory.location.longitude}
             onClick={(e) => {
@@ -284,15 +329,25 @@ const MapComponent: React.FC = () => {
             }}
           >
             <div className="cursor-pointer transform hover:scale-110 transition-transform z-50">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg border-2 border-gray-200">
-                {memory.imageUrls[0] && (
-                  <Image
-                    alt="Memory thumbnail"
-                    className="w-8 h-8 rounded-full object-cover"
-                    height={32}
-                    src={memory.imageUrls[0]}
-                    width={32}
-                  />
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 ${
+                  memory.isUnlocked ? "bg-white border-gray-200" : "bg-gray-400"
+                }`}
+              >
+                {memory.isUnlocked ? (
+                  memory.imageUrls?.[0] ? (
+                    <Image
+                      alt="Memory thumbnail"
+                      className="w-8 h-8 rounded-full object-cover"
+                      height={32}
+                      src={memory.imageUrls[0]}
+                      width={32}
+                    />
+                  ) : (
+                    <HiLocationMarker className="w-6 h-6 text-blue-500" />
+                  )
+                ) : (
+                  <HiLockClosed className="w-6 h-6 text-white" />
                 )}
               </div>
             </div>
@@ -303,6 +358,7 @@ const MapComponent: React.FC = () => {
           isOpen={isModalOpen}
           memory={selectedMemory}
           onClose={() => setIsModalOpen(false)}
+          onUnlock={() => unlockMemory(selectedMemory)}
         />
       </Map>
 
@@ -319,7 +375,10 @@ const MapComponent: React.FC = () => {
 
       {showUploadModal && userLocation && (
         <MapImageUpload
-          location={userLocation}
+          isOpen={showUploadModal}
+          location={userLocation!}
+          profile={profile}
+          user={user}
           onClose={() => setShowUploadModal(false)}
           onUpload={handleMemoryCreation}
         />
