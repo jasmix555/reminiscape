@@ -24,16 +24,22 @@ export const handleGeolocate = (
     setUserLocation(newLocation);
     setIsFollowingUser(true);
 
-    if (mapRef.current) {
-      mapRef.current.getMap().flyTo({
-        center: [newLocation.longitude, newLocation.latitude],
-        zoom: 16.45,
-        pitch: 45,
-        bearing: 0,
-        essential: true,
-        duration: 2000,
-      });
-    }
+    setTimeout(() => {
+      if (mapRef.current) {
+        const map = mapRef.current.getMap();
+
+        if (map) {
+          map.flyTo({
+            center: [newLocation.longitude, newLocation.latitude],
+            zoom: 16.45,
+            pitch: 45,
+            bearing: 0,
+            essential: true,
+            duration: 1500,
+          });
+        }
+      }
+    }, 1000); // Add slight delay to ensure map is ready
 
     setViewState((prev: any) => ({
       ...prev,
@@ -183,23 +189,18 @@ export const handleClusterClick = (
 
   if (!map) return;
 
-  // Validate if the clusterId exists in Supercluster
-  const clusterChildren = cluster.getChildren(clusterId);
+  try {
+    const zoom = cluster.getClusterExpansionZoom(clusterId);
 
-  if (!clusterChildren.length) {
-    console.error("No cluster with the specified id:", clusterId);
-
-    return;
-  }
-
-  const zoom = cluster.getClusterExpansionZoom(clusterId);
-
-  if (typeof zoom === "number") {
-    map.flyTo({
-      center: [longitude, latitude],
-      zoom: Math.min(zoom + 2, 18), // Prevent excessive zoom-in
-      essential: true,
-      duration: 1500, // Smooth animation
-    });
+    if (typeof zoom === "number") {
+      map.flyTo({
+        center: [longitude, latitude],
+        zoom: Math.min(zoom + 2, 18), // Prevent excessive zoom-in
+        essential: true,
+        duration: 1500,
+      });
+    }
+  } catch (error) {
+    console.error("Failed to expand cluster:", error);
   }
 };
