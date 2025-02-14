@@ -32,10 +32,27 @@ export interface Memory {
   createdAt: Date;
   updatedAt: Date;
   isUnlocked: boolean;
+  isNearMarker?: boolean;
 }
 
 export interface Marker {
   id: string;
   location: Location;
   memoryId: string;
+}
+
+export interface MemoryFeature {
+  type: "Feature";
+  properties: {
+    cluster: boolean;
+    memoryId?: string;
+    isUnlocked?: boolean;
+    imageUrl?: string | null;
+    point_count?: number;
+    cluster_id?: number;
+  };
+  geometry: {
+    type: "Point";
+    coordinates: [number, number];
+  };
 }

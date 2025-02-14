@@ -24,7 +24,7 @@ import { Memory, UserProfile } from "@/types";
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 
-interface MapImageUploadProps {
+interface MemoryUploadProps {
   user: User | null; // Add this line
   profile: UserProfile | null;
   isOpen: boolean;
@@ -64,7 +64,7 @@ const isVideoFile = (file: File): boolean => {
   );
 };
 
-const MapImageUpload: React.FC<MapImageUploadProps> = ({
+const MemoryUpload: React.FC<MemoryUploadProps> = ({
   location,
   onUpload,
   onClose,
@@ -580,4 +580,4 @@ const MapImageUpload: React.FC<MapImageUploadProps> = ({
     : null;
 };
 
-export default MapImageUpload;
+export default MemoryUpload;

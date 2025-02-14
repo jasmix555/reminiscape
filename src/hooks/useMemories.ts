@@ -4,6 +4,8 @@ import {
   query,
   getDocs,
   addDoc,
+  updateDoc,
+  doc,
   serverTimestamp,
   where,
 } from "firebase/firestore";
@@ -30,7 +32,6 @@ export const useMemories = () => {
 
     try {
       const memoriesRef = collection(db, "memories");
-
       const memoriesQuery = query(
         memoriesRef,
         where("createdBy.uid", "in", [user.uid, ...(profile.friends || [])]),
@@ -53,7 +54,7 @@ export const useMemories = () => {
         setMemories([]);
       }
     } catch (error: any) {
-      console.error("Error loading memories:", error.code, error.message);
+      console.error("Error loading memories:", error.message);
       setError(error.message || "Failed to load memories.");
       toast.error("Failed to load memories. Please try again later.");
     } finally {
@@ -88,9 +89,32 @@ export const useMemories = () => {
 
       return docRef.id;
     } catch (error: any) {
-      console.error("Error adding memory:", error.code, error.message);
+      console.error("Error adding memory:", error.message);
       toast.error(error.message || "Failed to create memory.");
       throw error;
+    }
+  };
+
+  const updateMemory = async (memoryId: string, updates: Partial<Memory>) => {
+    if (!user) {
+      toast.error("You must be logged in to update memories.");
+
+      return;
+    }
+
+    try {
+      const memoryRef = doc(db, "memories", memoryId);
+
+      await updateDoc(memoryRef, {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      });
+
+      await loadMemories(); // Refresh data after update
+      toast.success("Memory updated successfully!");
+    } catch (error: any) {
+      console.error("Error updating memory:", error.message);
+      toast.error("Failed to update memory.");
     }
   };
 
@@ -115,6 +139,7 @@ export const useMemories = () => {
     loading,
     error,
     addMemory,
+    updateMemory,
     refreshMemories,
   };
 };
