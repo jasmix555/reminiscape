@@ -71,19 +71,23 @@ const MapComponent: React.FC = () => {
     }),
   );
 
-  // useEffect(() => {
-  //   if (userLocation && !hasMovedToUser) {
-  //     setViewState((prev) => ({
-  //       ...prev,
-  //       longitude: userLocation.longitude,
-  //       latitude: userLocation.latitude,
-  //       zoom: 16, // Adjust zoom level
-  //       pitch: 45,
-  //       bearing: 0,
-  //     }));
-  //     setHasMovedToUser(true); // Ensure it only happens once
-  //   }
-  // }, [userLocation, hasMovedToUser]);
+  useEffect(() => {
+    if (userLocation && !hasMovedToUser && isMapLoaded && mapRef.current) {
+      const map = mapRef.current.getMap();
+
+      if (map) {
+        map.flyTo({
+          center: [userLocation.longitude, userLocation.latitude],
+          zoom: 16,
+          pitch: 45,
+          bearing: 0,
+          essential: true,
+          duration: 1500,
+        });
+        setHasMovedToUser(true); // Prevents repeated auto-centering
+      }
+    }
+  }, [userLocation, hasMovedToUser, isMapLoaded]);
 
   const updateClusters = useCallback(() => {
     if (!mapRef.current) return;
@@ -130,10 +134,12 @@ const MapComponent: React.FC = () => {
   }, [memories, updateClusters]);
 
   useEffect(() => {
-    if (geolocateControlRef.current) {
-      geolocateControlRef.current.trigger();
+    if (geolocateControlRef.current && !hasMovedToUser) {
+      setTimeout(() => {
+        geolocateControlRef.current.trigger();
+      }, 1000);
     }
-  }, []);
+  }, [hasMovedToUser]);
 
   useEffect(() => {
     if (!loading && user) {
@@ -237,6 +243,14 @@ const MapComponent: React.FC = () => {
       <Map
         ref={mapRef}
         attributionControl={false}
+        onLoad={() => {
+          setIsMapLoaded(true);
+          if (geolocateControlRef.current) {
+            setTimeout(() => {
+              geolocateControlRef.current.trigger();
+            }, 500);
+          }
+        }}
         {...viewState}
         antialias={true}
         mapStyle={MAPBOX_STYLE}
