@@ -5,15 +5,18 @@ import {
   getDocs,
   addDoc,
   updateDoc,
+  deleteDoc,
   doc,
   serverTimestamp,
   where,
 } from "firebase/firestore";
+import { ref, deleteObject } from "firebase/storage";
 import toast from "react-hot-toast";
 
 import { useAuth } from "./useAuth";
 
-import { db } from "@/libs";
+import { UserProfile } from "@/types";
+import { db, storage } from "@/libs"; // Ensure storage is imported
 import { Memory } from "@/types";
 
 export const useMemories = () => {
@@ -118,6 +121,87 @@ export const useMemories = () => {
     }
   };
 
+  const deleteMemory = async (
+    memoryId: string,
+    memoryData: Partial<Memory & { createdBy: Partial<UserProfile> }>,
+  ) => {
+    if (!user) {
+      toast.error("You must be logged in to delete memories.");
+
+      return;
+    }
+
+    try {
+      const memoryRef = doc(db, "memories", memoryId);
+      const memorySnap = await getDocs(
+        query(collection(db, "memories"), where("id", "==", memoryId)),
+      );
+
+      if (memorySnap.empty) {
+        toast.error("Memory does not exist.");
+
+        return;
+      }
+
+      // Delete associated images
+      if (memoryData.imageUrls && memoryData.imageUrls.length > 0) {
+        await Promise.all(
+          memoryData.imageUrls.map(async (imageUrl) => {
+            try {
+              const imageRef = ref(storage, imageUrl);
+
+              await deleteObject(imageRef);
+            } catch (error) {
+              console.warn(`Failed to delete image: ${imageUrl}`, error);
+            }
+          }),
+        );
+      }
+
+      // Delete associated videos
+      if (memoryData.videoUrls && memoryData.videoUrls.length > 0) {
+        await Promise.all(
+          memoryData.videoUrls.map(async (videoUrl) => {
+            try {
+              const videoRef = ref(storage, videoUrl);
+
+              await deleteObject(videoRef);
+            } catch (error) {
+              console.warn(`Failed to delete video: ${videoUrl}`, error);
+            }
+          }),
+        );
+      }
+
+      // Delete associated voice message
+      if (
+        memoryData.voiceMessageUrl &&
+        memoryData.voiceMessageUrl.trim() !== ""
+      ) {
+        try {
+          const voiceRef = ref(storage, memoryData.voiceMessageUrl);
+
+          await deleteObject(voiceRef);
+        } catch (error) {
+          console.warn(
+            `Failed to delete voice message: ${memoryData.voiceMessageUrl}`,
+            error,
+          );
+        }
+      }
+
+      // Delete memory from Firestore
+      await deleteDoc(memoryRef);
+
+      toast.success("Memory deleted successfully!");
+      await loadMemories(); // Refresh memory list after deletion
+    } catch (error) {
+      console.error("Error deleting memory:", error);
+      toast.error("Failed to delete memory.");
+      throw error;
+    }
+  };
+
   const refreshMemories = useCallback(() => {
     if (user) {
       setLoading(true);
@@ -140,6 +224,7 @@ export const useMemories = () => {
     error,
     addMemory,
     updateMemory,
+    deleteMemory,
     refreshMemories,
   };
 };

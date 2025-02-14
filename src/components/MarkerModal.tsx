@@ -1,27 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { HiX, HiPencil, HiCheck, HiXCircle, HiLockOpen } from "react-icons/hi";
+import {
+  HiX,
+  HiPencil,
+  HiCheck,
+  HiXCircle,
+  HiLockOpen,
+  HiTrash,
+} from "react-icons/hi";
 import { FaLock } from "react-icons/fa6";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
 import { useMemories } from "@/hooks/useMemories";
+import { Memory } from "@/types";
 
 interface MarkerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  memory: {
-    id: string;
-    title: string;
-    notes: string;
-    imageUrls: string[];
-    videoUrls: string[];
-    voiceMessageUrl?: string;
-    createdBy: {
-      username?: string;
-      uid: string;
-    };
-    isUnlocked: boolean;
-  } | null;
+  memory: Memory | null;
   onUnlock?: () => void;
   user?: { uid: string };
   isNearMarker: boolean;
@@ -35,7 +31,7 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
   user,
   isNearMarker,
 }) => {
-  const { updateMemory, refreshMemories } = useMemories();
+  const { updateMemory, deleteMemory, refreshMemories } = useMemories();
 
   const [isEditing, setIsEditing] = useState(false);
   const [updatedTitle, setUpdatedTitle] = useState("");
@@ -59,9 +55,7 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
   const isCurrentUserMemory = memory.createdBy.uid === user?.uid;
   const isMemoryUnlocked = memory.isUnlocked || isCurrentUserMemory;
 
-  const handleEditToggle = () => {
-    setIsEditing(!isEditing);
-  };
+  const handleEditToggle = () => setIsEditing(!isEditing);
 
   const handleSaveChanges = async () => {
     if (!memory || !user) return;
@@ -83,6 +77,27 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
     }
   };
 
+  const handleDeleteMemory = async () => {
+    if (!memory || !user) return;
+
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this memory? This action cannot be undone.",
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      await deleteMemory(memory.id, memory);
+      toast.success("Memory deleted successfully!");
+
+      refreshMemories();
+      onClose();
+    } catch (error) {
+      console.error("Failed to delete memory", error);
+      toast.error("Failed to delete memory.");
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4"
@@ -93,35 +108,41 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="absolute top-4 right-4 z-10 bg-white rounded-full p-1 hover:bg-gray-100 transition-colors"
+          className="bg-slate-100 border rounded-full p-2 hover:bg-slate-200  transition-colors absolute top-4 right-4"
           onClick={onClose}
         >
-          <HiX className="w-6 h-6 text-gray-600" />
+          <HiX className="w-6 h-6 text-black" />
         </button>
 
         {isEditing ? (
-          <div className="space-y-4">
-            <input
-              className="w-full border p-2 rounded"
-              type="text"
-              value={updatedTitle}
-              onChange={(e) => setUpdatedTitle(e.target.value)}
-            />
-            <textarea
-              className="w-full border p-2 rounded"
-              rows={3}
-              value={updatedNotes}
-              onChange={(e) => setUpdatedNotes(e.target.value)}
-            />
-            <div className="flex justify-end gap-2">
+          <div className="space-y-4 ">
+            <div className="space-y-2">
+              <span className="font-bold text-lg">Title</span>
+              <input
+                className="w-full border p-2 rounded"
+                type="text"
+                value={updatedTitle}
+                onChange={(e) => setUpdatedTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <span className="font-bold text-lg">Notes</span>
+              <textarea
+                className="w-full border p-2 rounded"
+                rows={3}
+                value={updatedNotes}
+                onChange={(e) => setUpdatedNotes(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-between font-bold">
               <button
-                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400"
+                className="px-4 py-2 bg-gray-300 text-white rounded-lg hover:bg-gray-400 transition-colors"
                 onClick={handleEditToggle}
               >
                 <HiXCircle className="inline w-5 h-5" /> Cancel
               </button>
               <button
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                 onClick={handleSaveChanges}
               >
                 <HiCheck className="inline w-5 h-5" /> Save
@@ -129,7 +150,7 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 ">
             <h3 className="font-bold text-lg">{memory.title}</h3>
             <p className="text-sm text-gray-600">{memory.notes}</p>
 
@@ -154,41 +175,36 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
               </>
             ) : (
               <>
-                {memory.imageUrls.length > 0 && (
-                  <div className="space-y-4">
-                    {memory.imageUrls.map((url, index) => (
-                      <div key={index} className="relative w-full aspect-video">
-                        <Image
-                          fill
-                          alt={`Memory ${index + 1}`}
-                          className="rounded-lg object-cover"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          src={url}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {memory.videoUrls.length > 0 && (
-                  <div className="space-y-4">
-                    {memory.videoUrls.map((url, index) => (
-                      <video key={index} controls className="w-full rounded-lg">
-                        <source src={url} type="video/mp4" />
-                        Your browser does not support the video tag.
-                      </video>
-                    ))}
-                  </div>
-                )}
+                {memory.imageUrls.length > 0 &&
+                  memory.imageUrls.map((url, index) => (
+                    <div key={index} className="relative w-full aspect-video">
+                      <Image
+                        fill
+                        alt={`Memory ${index + 1}`}
+                        className="rounded-lg object-cover"
+                        sizes="100vw"
+                        src={url}
+                      />
+                    </div>
+                  ))}
               </>
             )}
 
             {isCurrentUserMemory && (
-              <button
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors mt-2"
-                onClick={handleEditToggle}
-              >
-                <HiPencil className="inline w-5 h-5" /> Edit
-              </button>
+              <div className="flex justify-between mt-4">
+                <button
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  onClick={handleEditToggle}
+                >
+                  <HiPencil className="inline w-5 h-5" /> Edit
+                </button>
+                <button
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                  onClick={handleDeleteMemory}
+                >
+                  <HiTrash className="inline w-5 h-5" /> Delete
+                </button>
+              </div>
             )}
           </div>
         )}
