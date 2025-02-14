@@ -60,7 +60,9 @@ const MapComponent: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [clusters, setClusters] = useState<MemoryFeature[]>([]);
   const mapRef = useRef<any>(null);
+  const [hasMovedToUser, setHasMovedToUser] = useState(false);
   const geolocateControlRef = useRef<any>(null);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   const cluster = useRef(
     new Supercluster<MemoryFeature["properties"], MemoryFeature["geometry"]>({
@@ -68,6 +70,20 @@ const MapComponent: React.FC = () => {
       maxZoom: 16,
     }),
   );
+
+  // useEffect(() => {
+  //   if (userLocation && !hasMovedToUser) {
+  //     setViewState((prev) => ({
+  //       ...prev,
+  //       longitude: userLocation.longitude,
+  //       latitude: userLocation.latitude,
+  //       zoom: 16, // Adjust zoom level
+  //       pitch: 45,
+  //       bearing: 0,
+  //     }));
+  //     setHasMovedToUser(true); // Ensure it only happens once
+  //   }
+  // }, [userLocation, hasMovedToUser]);
 
   const updateClusters = useCallback(() => {
     if (!mapRef.current) return;
@@ -236,10 +252,18 @@ const MapComponent: React.FC = () => {
         <div className="absolute right-4 bottom-4 z-10 flex flex-col gap-2">
           <button
             className="p-2 rounded-full shadow-lg bg-white text-gray-700 hover:bg-gray-200"
-            onClick={() => handleLocateClick(userLocation, () => {}, mapRef)}
+            onClick={() =>
+              handleLocateClick(
+                userLocation,
+                () => {},
+                mapRef,
+                setHasMovedToUser,
+              )
+            }
           >
             <HiLocationMarker className="w-5 h-5" />
           </button>
+
           <div className="bg-white rounded-lg shadow-lg">
             <NavigationControl showCompass={true} showZoom={true} />
           </div>

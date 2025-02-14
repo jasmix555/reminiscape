@@ -70,9 +70,11 @@ export const handleLocateClick = (
   userLocation: { longitude: number; latitude: number } | null,
   setIsFollowingUser: (isFollowing: boolean) => void,
   mapRef: any,
+  setHasMovedToUser: (moved: boolean) => void, // Pass state updater
 ) => {
   if (userLocation) {
     setIsFollowingUser(true);
+    setHasMovedToUser(false); // Allow re-centering
     mapRef.current?.getMap().flyTo({
       center: [userLocation.longitude, userLocation.latitude],
       zoom: 16.45,
