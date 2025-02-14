@@ -7,5 +7,5 @@ export { default as ErrorBoundary } from "./ErrorBoundary";
 
 export * from "./ProfileImageUpload";
 
-export { default as MapImageUpload } from "./MapImageUpload";
+export { default as MemoryUpload } from "./MemoryUpload";
 export { default as Map } from "./Map";
