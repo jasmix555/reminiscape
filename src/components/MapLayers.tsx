@@ -10,6 +10,16 @@ const MapLayers: React.FC<MapLayersProps> = ({ map }) => {
     if (!map) return;
 
     const mapInstance = map.getMap();
+
+    // ✅ Prevent adding duplicate layers
+    if (mapInstance.getLayer("add-3d-buildings")) {
+      console.warn(
+        "Layer 'add-3d-buildings' already exists. Skipping addition.",
+      );
+
+      return;
+    }
+
     const style = mapInstance.getStyle();
     const layers = style?.layers;
 
@@ -54,6 +64,13 @@ const MapLayers: React.FC<MapLayersProps> = ({ map }) => {
         labelLayerId,
       );
     }
+
+    // ✅ Cleanup function: Remove layer when component unmounts
+    return () => {
+      if (mapInstance.getLayer("add-3d-buildings")) {
+        mapInstance.removeLayer("add-3d-buildings");
+      }
+    };
   }, [map]);
 
   return null;
