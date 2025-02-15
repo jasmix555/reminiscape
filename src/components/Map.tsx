@@ -192,7 +192,7 @@ const MapComponent: React.FC = () => {
             longitude={longitude}
           >
             <div
-              className="bg-blue-600 text-white text-sm font-bold p-2 flex items-center justify-center rounded-lg shadow-md cursor-pointer z-10"
+              className="bg-blue-600/75 hover:bg-blue-600 text-white text-sm font-bold p-2 flex items-center justify-center rounded-lg shadow-md cursor-pointer z-10 transform hover:scale-110 transition-transform"
               onClick={() => {
                 if (!cluster.current) return;
                 handleClusterClick(
