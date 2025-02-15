@@ -187,11 +187,12 @@ const MapComponent: React.FC = () => {
         return (
           <Marker
             key={`cluster-${clusterId}`}
+            className="z-0"
             latitude={latitude}
             longitude={longitude}
           >
             <div
-              className="bg-blue-600 text-white text-sm font-bold w-10 h-10 flex items-center justify-center rounded-full shadow-md cursor-pointer"
+              className="bg-blue-600 text-white text-sm font-bold p-2 flex items-center justify-center rounded-lg shadow-md cursor-pointer z-10"
               onClick={() => {
                 if (!cluster.current) return;
                 handleClusterClick(
@@ -203,7 +204,7 @@ const MapComponent: React.FC = () => {
                 );
               }}
             >
-              {point_count}
+              {point_count} {point_count === 1 ? "Memory" : "Memories"}
             </div>
           </Marker>
         );
@@ -219,7 +220,7 @@ const MapComponent: React.FC = () => {
       return (
         <Marker key={memoryId} latitude={latitude} longitude={longitude}>
           <div
-            className="cursor-pointer transform hover:scale-110 transition-transform z-50"
+            className="cursor-pointer transform hover:scale-110 transition-transform"
             onClick={(e) => {
               e.stopPropagation();
               handleMarkerClick(
@@ -309,7 +310,7 @@ const MapComponent: React.FC = () => {
             latitude={userLocation.latitude}
             longitude={userLocation.longitude}
           >
-            <div className="relative pb-10  z-50">
+            <div className="relative pb-10 z-50">
               <HiLocationMarker className="w-8 h-8 text-blue-500 animate-bounce" />
             </div>
           </Marker>
