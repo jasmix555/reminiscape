@@ -263,7 +263,9 @@ const MapComponent: React.FC = () => {
           updateClusters();
         }}
       >
-        <MapLayers map={mapRef.current} />
+        {/* Only render MapLayers when the map is fully loaded */}
+        {isMapLoaded && <MapLayers map={mapRef.current} />}
+
         <div className="absolute right-4 bottom-4 z-10 flex flex-col gap-2">
           <button
             className="p-2 rounded-full shadow-lg bg-white text-gray-700 hover:bg-gray-200"

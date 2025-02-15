@@ -35,7 +35,7 @@ const Header = () => {
   return (
     <>
       {/* Header */}
-      <header className="fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white">
+      <header className="fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white bg-slate-500-50 backdrop-blur-md">
         <div
           className="absolute left-0 right-0 top-0 h-full"
           style={{ opacity }}
