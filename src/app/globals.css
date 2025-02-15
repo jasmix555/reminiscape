@@ -24,7 +24,7 @@ body {
 }
 
 .mapboxgl-ctrl-group {
-  @apply bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg;
+  @apply backdrop-blur-sm border border-gray-200 shadow-lg p-1;
 }
 
 .mapboxgl-ctrl-group button {
@@ -34,26 +34,27 @@ body {
 /* Style for the geolocation button when active */
 .mapboxgl-ctrl-geolocate-active {
   @apply text-blue-500;
-  z-index: 0;
+  z-index: 50;
 }
 
 /* Style for the accuracy circle */
 .mapboxgl-user-location-accuracy-circle {
   @apply bg-blue-500/20;
   pointer-events: none;
-  z-index: 0; /* Ensure it's below the markers */
+  z-index: 50; /* Ensure it's below the markers */
   width: 100px; /* Adjust size as needed */
   height: 100px; /* Adjust size as needed */
 }
 
 .mapboxgl-user-location-accuracy-circle {
   pointer-events: none !important; /* Use !important to override any inline styles */
+  z-index: 50; /* Ensure it's below the markers */
 }
 
 /* Style for the location dot */
 .mapboxgl-user-location-dot {
   @apply bg-blue-500;
-  z-index: 2; /*Ensure it's above the accuracy circle */
+  z-index: 50; /*Ensure it's above the accuracy circle */
 }
 
 /* Optional: Hide only mapbox logo and attribution text */
@@ -69,6 +70,7 @@ body {
 /* Pulse Animation */
 .pulse-animation {
   animation: pulse 1.5s infinite;
+  z-index: 50;
 }
 
 @keyframes pulse {
