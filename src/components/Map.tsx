@@ -115,6 +115,14 @@ const MapComponent: React.FC = () => {
 
   useEffect(() => {
     if (!memories.length) return;
+    if (!mapRef.current) return;
+
+    const map = mapRef.current.getMap();
+
+    if (!map) return;
+
+    const bounds = map.getBounds();
+    const zoom = Math.floor(viewState.zoom);
 
     const points: MemoryFeature[] = memories.map((memory) => ({
       type: "Feature",
@@ -131,8 +139,19 @@ const MapComponent: React.FC = () => {
     }));
 
     cluster.current.load(points);
-    updateClusters();
-  }, [memories, updateClusters]);
+
+    const clusteredData = cluster.current.getClusters(
+      [
+        bounds.getWest(),
+        bounds.getSouth(),
+        bounds.getEast(),
+        bounds.getNorth(),
+      ],
+      zoom,
+    ) as MemoryFeature[];
+
+    setClusters(clusteredData);
+  }, [memories, viewState.zoom]);
 
   useEffect(() => {
     if (geolocateControlRef.current && !hasMovedToUser) {
@@ -209,6 +228,7 @@ const MapComponent: React.FC = () => {
                 setSelectedMemory as (memory: Memory | null) => void,
                 setIsModalOpen,
                 mapRef,
+                geolocateControlRef, // ✅ Pass GeolocateControl Ref
               );
             }}
           >
@@ -264,11 +284,13 @@ const MapComponent: React.FC = () => {
         }}
       >
         {/* Only render MapLayers when the map is fully loaded */}
-        {isMapLoaded && <MapLayers map={mapRef.current} />}
+        {isMapLoaded && <MapLayers mapRef={mapRef} />}
 
-        <div className="absolute right-4 bottom-4 z-10 flex flex-col gap-2">
+        <div className="absolute right-3  top-44  z-10 flex flex-col gap-2">
+          <NavigationControl showZoom={true} />
+
           <button
-            className="p-2 rounded-full shadow-lg bg-white text-gray-700 hover:bg-gray-200"
+            className="p-2 rounded-full border-gray-200 border-2 shadow-lg bg-white text-gray-700 hover:bg-gray-200"
             onClick={() =>
               handleLocateClick(
                 userLocation,
@@ -280,25 +302,33 @@ const MapComponent: React.FC = () => {
           >
             <HiLocationMarker className="w-5 h-5" />
           </button>
-
-          <div className="bg-white rounded-lg shadow-lg">
-            <NavigationControl showCompass={true} showZoom={true} />
-          </div>
         </div>
+
+        {userLocation && (
+          <Marker
+            latitude={userLocation.latitude}
+            longitude={userLocation.longitude}
+          >
+            <div className="relative pb-10  z-50">
+              <HiLocationMarker className="w-8 h-8 text-blue-500 animate-bounce" />
+            </div>
+          </Marker>
+        )}
 
         <GeolocateControl
           ref={geolocateControlRef}
           positionOptions={{ enableHighAccuracy: true }}
+          showUserLocation={true} // ✅ Ensures the user dot stays visible
           trackUserLocation={true}
-          onGeolocate={(position) =>
+          onGeolocate={(position) => {
             handleGeolocate(
               position,
               setUserLocation,
               () => {},
               setViewState,
               mapRef,
-            )
-          }
+            );
+          }}
         />
 
         {renderedMarkers}

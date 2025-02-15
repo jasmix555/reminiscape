@@ -2,17 +2,16 @@ import { useEffect } from "react";
 import { MapRef } from "react-map-gl";
 
 interface MapLayersProps {
-  map: MapRef | null;
+  mapRef: React.RefObject<MapRef>;
 }
 
-const MapLayers: React.FC<MapLayersProps> = ({ map }) => {
+const MapLayers: React.FC<MapLayersProps> = ({ mapRef }) => {
   useEffect(() => {
-    if (!map) return;
+    if (!mapRef.current) return;
 
-    const mapInstance = map.getMap();
+    const map = mapRef.current.getMap();
 
-    // ✅ Prevent adding duplicate layers
-    if (mapInstance.getLayer("add-3d-buildings")) {
+    if (map.getLayer("add-3d-buildings")) {
       console.warn(
         "Layer 'add-3d-buildings' already exists. Skipping addition.",
       );
@@ -20,7 +19,7 @@ const MapLayers: React.FC<MapLayersProps> = ({ map }) => {
       return;
     }
 
-    const style = mapInstance.getStyle();
+    const style = map.getStyle();
     const layers = style?.layers;
 
     if (!layers) return;
@@ -30,7 +29,7 @@ const MapLayers: React.FC<MapLayersProps> = ({ map }) => {
     )?.id;
 
     if (labelLayerId) {
-      mapInstance.addLayer(
+      map.addLayer(
         {
           id: "add-3d-buildings",
           source: "composite",
@@ -65,13 +64,12 @@ const MapLayers: React.FC<MapLayersProps> = ({ map }) => {
       );
     }
 
-    // ✅ Cleanup function: Remove layer when component unmounts
     return () => {
-      if (mapInstance.getLayer("add-3d-buildings")) {
-        mapInstance.removeLayer("add-3d-buildings");
+      if (map.getLayer("add-3d-buildings")) {
+        map.removeLayer("add-3d-buildings");
       }
     };
-  }, [map]);
+  }, [mapRef]);
 
   return null;
 };

@@ -15,43 +15,44 @@ export const handleGeolocate = (
   setViewState: (prev: any) => void,
   mapRef: any,
 ) => {
-  if (position.coords) {
-    const newLocation = {
-      longitude: position.coords.longitude,
-      latitude: position.coords.latitude,
-    };
-
-    setUserLocation(newLocation);
-    setIsFollowingUser(true);
-
-    setTimeout(() => {
-      if (mapRef.current) {
-        const map = mapRef.current.getMap();
-
-        if (map) {
-          map.flyTo({
-            center: [newLocation.longitude, newLocation.latitude],
-            zoom: 16.45,
-            pitch: 45,
-            bearing: 0,
-            essential: true,
-            duration: 1500,
-          });
-        }
-      }
-    }, 1000); // Add slight delay to ensure map is ready
-
-    setViewState((prev: any) => ({
-      ...prev,
-      longitude: newLocation.longitude,
-      latitude: newLocation.latitude,
-      zoom: 16.45,
-      pitch: 45,
-      bearing: 0,
-    }));
-  } else {
+  if (!position.coords) {
     toast.error("Unable to retrieve location.");
+
+    return;
   }
+
+  const newLocation = {
+    longitude: position.coords.longitude,
+    latitude: position.coords.latitude,
+  };
+
+  setUserLocation(newLocation);
+  setIsFollowingUser(true);
+
+  setViewState((prev: any) => ({
+    ...prev,
+    longitude: newLocation.longitude,
+    latitude: newLocation.latitude,
+  }));
+
+  setTimeout(() => {
+    if (mapRef.current) {
+      const map = mapRef.current.getMap();
+
+      if (map) {
+        const currentZoom = map.getZoom();
+
+        map.flyTo({
+          center: [newLocation.longitude, newLocation.latitude],
+          zoom: Math.min(currentZoom + 2, 16.45), // ✅ Prevent excessive zoom-in
+          pitch: 45,
+          bearing: 0,
+          essential: true,
+          duration: 1500,
+        });
+      }
+    }
+  }, 1000);
 };
 
 export const handleMapMove = (
@@ -62,13 +63,15 @@ export const handleMapMove = (
 ) => {
   setViewState(evt.viewState);
 
-  if (userLocation) {
-    const threshold = 0.0001;
-    const isNearUser =
-      Math.abs(evt.viewState.longitude - userLocation.longitude) < threshold &&
-      Math.abs(evt.viewState.latitude - userLocation.latitude) < threshold;
+  if (!userLocation) return;
 
-    setIsFollowingUser(isNearUser);
+  const threshold = 0.0005;
+  const isNearUser =
+    Math.abs(evt.viewState.longitude - userLocation.longitude) < threshold &&
+    Math.abs(evt.viewState.latitude - userLocation.latitude) < threshold;
+
+  if (!isNearUser) {
+    setIsFollowingUser(false);
   }
 };
 
@@ -76,21 +79,121 @@ export const handleLocateClick = (
   userLocation: { longitude: number; latitude: number } | null,
   setIsFollowingUser: (isFollowing: boolean) => void,
   mapRef: any,
-  setHasMovedToUser: (moved: boolean) => void, // Pass state updater
+  setHasMovedToUser: (moved: boolean) => void,
 ) => {
-  if (userLocation) {
-    setIsFollowingUser(true);
-    setHasMovedToUser(false); // Allow re-centering
-    mapRef.current?.getMap().flyTo({
-      center: [userLocation.longitude, userLocation.latitude],
-      zoom: 16.45,
-      pitch: 45,
-      bearing: 0,
-      essential: true,
-      duration: 2000,
-    });
+  if (userLocation && mapRef.current) {
+    const map = mapRef.current.getMap();
+
+    if (map) {
+      const currentZoom = map.getZoom();
+
+      setIsFollowingUser(true);
+      setHasMovedToUser(false);
+
+      map.flyTo({
+        center: [userLocation.longitude, userLocation.latitude],
+        zoom: Math.min(currentZoom + 2, 16.45), // ✅ Prevent excessive zoom-in
+        pitch: 45,
+        bearing: 0,
+        essential: true,
+        duration: 2000,
+      });
+    }
   } else {
     toast.error("Location services are not available");
+  }
+};
+
+export const handleMarkerClick = (
+  memory: Memory,
+  userLocation: { longitude: number; latitude: number } | null,
+  setSelectedMemory: (
+    memory: (Memory & { isNearMarker: boolean }) | null,
+  ) => void,
+  setIsModalOpen: (open: boolean) => void,
+  mapRef: React.RefObject<MapRef | null>,
+  geolocateControlRef: React.RefObject<any>,
+) => {
+  if (!mapRef.current) return;
+
+  const map = mapRef.current.getMap();
+  const distance = userLocation
+    ? getDistance(userLocation, memory.location)
+    : Infinity;
+  const isNearMarker = distance <= RADIUS;
+
+  setSelectedMemory({ ...memory, isNearMarker });
+  setIsModalOpen(true);
+
+  if (geolocateControlRef.current) {
+    geolocateControlRef.current.trigger();
+  }
+
+  const currentZoom = map.getZoom();
+
+  map.flyTo({
+    center: [memory.location.longitude, memory.location.latitude],
+    zoom: Math.min(currentZoom + 2, 19), // ✅ Prevent excessive zoom-in
+    pitch: 45,
+    bearing: 0,
+    essential: true,
+    duration: 1500,
+  });
+};
+
+export const handleClusterClick = (
+  clusterId: number,
+  longitude: number,
+  latitude: number,
+  mapRef: React.RefObject<MapRef | null>,
+  cluster: Supercluster,
+) => {
+  if (!mapRef.current || !cluster) return;
+
+  const map = mapRef.current.getMap();
+
+  if (!map) return;
+
+  try {
+    // Get the bounding box of the cluster (West, South, East, North)
+    const expansionZoom = cluster.getClusterExpansionZoom(clusterId);
+    const currentZoom = map.getZoom();
+    const clusterChildren = cluster.getLeaves(clusterId, Infinity);
+
+    if (clusterChildren.length > 1) {
+      const lats = clusterChildren.map((c) => c.geometry.coordinates[1]);
+      const lngs = clusterChildren.map((c) => c.geometry.coordinates[0]);
+
+      const west = Math.min(...lngs);
+      const south = Math.min(...lats);
+      const east = Math.max(...lngs);
+      const north = Math.max(...lats);
+
+      map.fitBounds(
+        [
+          [west, south],
+          [east, north],
+        ],
+        {
+          padding: 100, // Add padding to prevent markers from being at the edge
+          maxZoom: Math.min(expansionZoom + 3, 17), // Prevent excessive zoom-in
+          duration: 1000,
+          pitch: 45,
+          bearing: 0,
+        },
+      );
+    } else {
+      map.flyTo({
+        center: [longitude, latitude],
+        zoom: Math.min(currentZoom + 3, expansionZoom + 3, 18), // Prevent excessive zoom-in,
+        essential: true,
+        duration: 1000,
+        pitch: 45,
+        bearing: 0,
+      });
+    }
+  } catch (error) {
+    console.error("Failed to expand cluster:", error);
   }
 };
 
@@ -140,67 +243,5 @@ export const unlockMemory = (
     memory.isUnlocked = true;
     setSelectedMemory(memory);
     toast.success("Memory unlocked successfully!");
-  }
-};
-
-export const handleMarkerClick = (
-  memory: Memory,
-  userLocation: { longitude: number; latitude: number } | null,
-  setSelectedMemory: (
-    memory: (Memory & { isNearMarker: boolean }) | null,
-  ) => void,
-  setIsModalOpen: (open: boolean) => void,
-  mapRef: React.RefObject<MapRef | null>, // Ensure map reference is passed
-) => {
-  if (!mapRef.current) return;
-
-  const map = mapRef.current.getMap();
-  const distance = userLocation
-    ? getDistance(userLocation, memory.location)
-    : Infinity;
-  const isNearMarker = distance <= RADIUS;
-
-  setSelectedMemory({ ...memory, isNearMarker });
-  setIsModalOpen(true);
-
-  // Fly to the marker smoothly
-  const currentZoom = map.getZoom();
-
-  map.flyTo({
-    center: [memory.location.longitude, memory.location.latitude],
-    zoom: Math.min(currentZoom + 2, 19), // Zoom in
-    pitch: 45,
-    bearing: 0,
-    essential: true,
-    duration: 1500, // Smooth transition
-  });
-};
-
-export const handleClusterClick = (
-  clusterId: number,
-  longitude: number,
-  latitude: number,
-  mapRef: React.RefObject<MapRef | null>,
-  cluster: Supercluster,
-) => {
-  if (!mapRef.current || !cluster) return;
-
-  const map = mapRef.current.getMap();
-
-  if (!map) return;
-
-  try {
-    const zoom = cluster.getClusterExpansionZoom(clusterId);
-
-    if (typeof zoom === "number") {
-      map.flyTo({
-        center: [longitude, latitude],
-        zoom: Math.min(zoom + 2, 18), // Prevent excessive zoom-in
-        essential: true,
-        duration: 1500,
-      });
-    }
-  } catch (error) {
-    console.error("Failed to expand cluster:", error);
   }
 };
