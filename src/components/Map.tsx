@@ -43,12 +43,13 @@ const MapComponent: React.FC = () => {
   const { user, profile } = useAuth();
   const { memories, loading, addMemory, refreshMemories } = useMemories();
   const [viewState, setViewState] = useState({
-    longitude: 0,
-    latitude: 0,
-    zoom: 1,
+    longitude: 135.5023, // Longitude of Osaka
+    latitude: 34.6937, // Latitude of Osaka
+    zoom: 2, // Adjusted zoom level for a closer view
     pitch: 45,
     bearing: 0,
   });
+
   const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
   const [selectedMemory, setSelectedMemory] = useState<
     (Memory & { isNearMarker?: boolean }) | null

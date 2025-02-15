@@ -49,7 +49,7 @@ const Header = () => {
         </div>
         {/* Centered Logo Name */}
         <Link
-          className="absolute left-1/2 top-7 z-10 transform -translate-x-1/2 text-2xl font-bold text-black"
+          className="absolute left-1/2 top-4 z-10 transform -translate-x-1/2 text-2xl font-bold text-black"
           href={"/"}
         >
           Reminiscape

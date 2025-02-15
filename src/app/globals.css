@@ -42,8 +42,8 @@ body {
   @apply bg-blue-500/20;
   pointer-events: none;
   z-index: 0; /* Ensure it's below the markers */
-  width: 40px; /* Adjust size as needed */
-  height: 40px; /* Adjust size as needed */
+  width: 100px; /* Adjust size as needed */
+  height: 100px; /* Adjust size as needed */
 }
 
 .mapboxgl-user-location-accuracy-circle {
@@ -68,7 +68,7 @@ body {
 
 /* Pulse Animation */
 .pulse-animation {
-  animation: pulse 2s infinite;
+  animation: pulse 1.5s infinite;
 }
 
 @keyframes pulse {
@@ -78,8 +78,8 @@ body {
   }
 
   70% {
-    transform: scale(1.1);
-    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+    transform: scale(3);
+    box-shadow: 0 0 0 20px rgba(22, 103, 234, 0);
   }
 
   100% {
