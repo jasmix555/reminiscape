@@ -2,7 +2,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion"; // Import Framer Motion
 import { FaGear, FaUsers, FaHouse } from "react-icons/fa6";
 
@@ -10,23 +10,7 @@ import { useProfile } from "@/hooks";
 
 const Header = () => {
   const { profile, loading } = useProfile();
-  const [opacity, setOpacity] = useState(0.4);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      const newOpacity = Math.max(0.1, 0.4 - scrollY / 100);
-
-      setOpacity(newOpacity);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
 
   if (loading) return null;
 
@@ -35,11 +19,8 @@ const Header = () => {
   return (
     <>
       {/* Header */}
-      <header className="fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white bg-slate-500-50 backdrop-blur-md">
-        <div
-          className="absolute left-0 right-0 top-0 h-full"
-          style={{ opacity }}
-        />
+      <header className="fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white ">
+        <div className="absolute left-0 right-0 top-0" />
         {/* Gear Icon for Settings (Left Side) */}
         <div
           className="absolute left-4 top-4 z-10 cursor-pointer flex items-center space-x-2"
