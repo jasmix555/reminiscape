@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   HiX,
   HiPencil,
@@ -10,6 +10,8 @@ import {
 import { FaLock } from "react-icons/fa6";
 import Image from "next/image";
 import toast from "react-hot-toast";
+
+import MediaPopup from "./MediaPopup"; // Import MediaPopup
 
 import { useMemories } from "@/hooks/useMemories";
 import { Memory } from "@/types";
@@ -36,19 +38,8 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [updatedTitle, setUpdatedTitle] = useState("");
   const [updatedNotes, setUpdatedNotes] = useState("");
-
-  useEffect(() => {
-    if (memory) {
-      setUpdatedTitle(memory.title);
-      setUpdatedNotes(memory.notes);
-    }
-  }, [memory]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setIsEditing(false);
-    }
-  }, [isOpen]);
+  const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
 
   if (!isOpen || !memory) return null;
 
@@ -98,6 +89,11 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
     }
   };
 
+  const openMediaPopup = (url: string, type: "image" | "video") => {
+    setSelectedMedia(url);
+    setMediaType(type);
+  };
+
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4"
@@ -108,14 +104,14 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="bg-slate-100 border rounded-full p-2 hover:bg-slate-200  transition-colors absolute top-4 right-4"
+          className="bg-slate-100 border rounded-full p-2 hover:bg-slate-200 transition-colors absolute top-4 right-4"
           onClick={onClose}
         >
           <HiX className="w-6 h-6 text-black" />
         </button>
 
         {isEditing ? (
-          <div className="space-y-4 ">
+          <div className="space-y-4">
             <div className="space-y-2">
               <span className="font-bold text-lg">Title</span>
               <input
@@ -150,7 +146,7 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
             </div>
           </div>
         ) : (
-          <div className="space-y-2 ">
+          <div className="space-y-2">
             <h3 className="font-bold text-lg">{memory.title}</h3>
             <p className="text-sm text-gray-600">{memory.notes}</p>
 
@@ -175,18 +171,33 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
               </>
             ) : (
               <>
-                {memory.imageUrls.length > 0 &&
-                  memory.imageUrls.map((url, index) => (
-                    <div key={index} className="relative w-full aspect-video">
-                      <Image
-                        fill
-                        alt={`Memory ${index + 1}`}
-                        className="rounded-lg object-cover"
-                        sizes="100vw"
-                        src={url}
-                      />
-                    </div>
-                  ))}
+                {memory.imageUrls.map((url, index) => (
+                  <div
+                    key={index}
+                    className="relative w-full aspect-video cursor-pointer"
+                    onClick={() => openMediaPopup(url, "image")}
+                  >
+                    <Image
+                      fill
+                      alt={`Memory ${index + 1}`}
+                      className="rounded-lg object-cover"
+                      sizes="100vw"
+                      src={url}
+                    />
+                  </div>
+                ))}
+                {memory.videoUrls.map((url, index) => (
+                  <div
+                    key={index}
+                    className="relative w-full aspect-video cursor-pointer"
+                    onClick={() => openMediaPopup(url, "video")}
+                  >
+                    <video className="w-full h-full rounded-lg object-cover">
+                      <source src={url} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                ))}
               </>
             )}
 
@@ -209,6 +220,17 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
           </div>
         )}
       </div>
+
+      {selectedMedia && mediaType && (
+        <MediaPopup
+          mediaType={mediaType}
+          mediaUrl={selectedMedia}
+          onClose={() => {
+            setSelectedMedia(null);
+            setMediaType(null);
+          }}
+        />
+      )}
     </div>
   );
 };
