@@ -11,6 +11,9 @@ const MapLayers: React.FC<MapLayersProps> = ({ mapRef }) => {
 
     const map = mapRef.current.getMap();
 
+    if (!map) return;
+
+    // Prevent duplicate layers
     if (map.getLayer("add-3d-buildings")) {
       console.warn(
         "Layer 'add-3d-buildings' already exists. Skipping addition.",
@@ -64,9 +67,14 @@ const MapLayers: React.FC<MapLayersProps> = ({ mapRef }) => {
       );
     }
 
+    // ✅ FIX: Ensure map still exists before cleanup
     return () => {
-      if (map.getLayer("add-3d-buildings")) {
-        map.removeLayer("add-3d-buildings");
+      if (mapRef.current) {
+        const cleanupMap = mapRef.current.getMap();
+
+        if (cleanupMap && cleanupMap.getLayer("add-3d-buildings")) {
+          cleanupMap.removeLayer("add-3d-buildings");
+        }
       }
     };
   }, [mapRef]);
