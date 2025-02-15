@@ -152,20 +152,19 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
 
             {!isMemoryUnlocked ? (
               <>
-                <div className="text-white bg-red-500 p-2 rounded-lg text-center flex items-center gap-2 justify-center">
-                  <FaLock />
-                  <p>
-                    {isNearMarker
-                      ? "This memory is locked. Click to unlock!"
-                      : "Move closer to unlock this memory."}
-                  </p>
-                </div>
+                {!isNearMarker && (
+                  <div className="text-white bg-red-500 p-2 rounded-lg text-center flex items-center gap-2 justify-center w-full">
+                    <FaLock />
+                    <p>Move closer to unlock this memory.</p>
+                  </div>
+                )}
                 {isNearMarker && (
                   <button
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    className="text-white bg-blue-500 p-2 rounded-lg text-center flex items-center gap-2 justify-center w-full"
                     onClick={onUnlock}
                   >
-                    <HiLockOpen className="inline w-5 h-5" /> Unlock Memory
+                    <HiLockOpen className="inline w-5 h-5" />
+                    <p>Unlock Memory</p>
                   </button>
                 )}
               </>
