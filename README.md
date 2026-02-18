@@ -134,7 +134,7 @@ If scaling beyond prototype stage:
 ## ⚙️ Local Development
 
 ```bash
-git clone https://github.com/your-username/reminiscape
+git clone https://github.com/jasmix555/reminiscape
 cd reminiscape
 npm install
 npm run dev
