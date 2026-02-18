@@ -1,36 +1,140 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Reminiscape
 
-## Getting Started
+> A geospatial memory journaling application that allows users to attach personal memories to real-world locations through an interactive map interface.
 
-First, run the development server:
+Reminiscape is a full-stack web application built with **Next.js (App Router)** and **TypeScript**, integrating **Mapbox** for geospatial visualization and **Firebase** for authentication and data storage.
+
+---
+
+## 🌍 Overview
+
+Reminiscape enables users to:
+
+- Create memories pinned to geographic coordinates
+- Attach metadata and media to each memory
+- Visualize memories interactively on a dynamic map
+- Persist and sync data using a real-time backend
+
+This project focuses on production-level frontend architecture, strict type safety, and maintainable development workflows suitable for collaborative environments.
+
+---
+
+## ✨ Core Features
+
+- 📍 Create location-based memories
+- 🗺️ Interactive map powered by Mapbox
+- 🔐 Firebase authentication
+- 📝 Structured memory data (title, description, date, coordinates)
+- 🖼️ Media upload support
+- 📏 Distance calculations using geolib
+- 🎞️ UI animations with Framer Motion
+- 🚀 Production deployment via Vercel
+
+---
+
+## 🛠 Tech Stack
+
+### Frontend
+- **Next.js 15 (App Router)**
+- **React 18**
+- **TypeScript (Strict Mode)**
+- **TailwindCSS**
+- **Framer Motion**
+
+### Geospatial
+- **mapbox-gl**
+- **react-map-gl**
+- **geolib**
+
+### Backend / Infrastructure
+- **Firebase (Auth + Firestore + Storage)**
+- **Vercel Deployment**
+
+---
+
+## 🏗 Architecture Overview
+
+### Project Structure Philosophy
+
+The project follows a modular, feature-oriented structure to separate:
+
+- UI components
+- Business logic
+- Data access
+- Type definitions
+
+This separation improves:
+
+- Maintainability
+- Scalability
+- Team collaboration readiness
+- Predictable data flow
+
+---
+
+### State Management Strategy
+
+- Local state for isolated UI concerns
+- Lifted/shared state for map-memory coordination
+- Strict TypeScript interfaces for domain models
+- Controlled side effects using React hooks
+
+Design goal: predictable state transitions and minimized unnecessary re-renders.
+
+---
+
+### Data Flow
+
+1. User creates memory
+2. Client-side validation occurs
+3. Firebase write operation executes
+4. Firestore listener updates local state
+5. Map re-renders with updated markers
+
+This ensures UI consistency with backend state.
+
+---
+
+## 🔒 Type Safety & Code Quality
+
+This project emphasizes production-ready development discipline.
+
+### Type Safety
+- Strict TypeScript configuration
+- No uncontrolled `any`
+- Clearly defined domain models
+
+### Linting & Formatting
+- ESLint (Next.js + TypeScript rules)
+- Prettier (with Tailwind plugin)
+- Unused import enforcement
+
+### Git Workflow
+- Husky pre-commit hooks
+- Commitlint (Conventional Commits)
+- lint-staged validation
+
+Purpose:
+Maintain readable commit history, consistent code style, and scalable collaboration.
+
+---
+
+## 📈 Scalability Considerations
+
+If scaling beyond prototype stage:
+
+- Add pagination for memory fetching
+- Introduce server-side validation layer
+- Optimize marker rendering for large datasets
+- Add caching strategy for frequently accessed clusters
+- Consider backend abstraction layer beyond Firebase if needed
+
+---
+
+## ⚙️ Local Development
 
 ```bash
+git clone https://github.com/your-username/reminiscape
+cd reminiscape
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
