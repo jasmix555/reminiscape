@@ -73,6 +73,7 @@ export default function Login() {
             <input
               required
               aria-label="Email Address"
+              autoComplete="email"
               className="w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
               placeholder="Email Address"
               type="email"
@@ -84,6 +85,7 @@ export default function Login() {
             <input
               required
               aria-label="Password"
+              autoComplete="current-password"
               className="w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
               placeholder="Password"
               type={isPasswordVisible ? "text" : "password"}

@@ -1,0 +1,67 @@
+rules_version = '2';
+
+// Reminiscape Cloud Storage security rules
+// Paths used by the app:
+//   profileImages/{uid}/{file}   - profile photos (owner-scoped)
+//   userUploads/{uid}/{file}     - user-scoped memory images (legacy path)
+//   memories/images/{file}       - memory images   (no uid in path)
+//   memories/videos/{file}       - memory videos   (no uid in path)
+//   memories/voice/{file}        - voice messages  (no uid in path)
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ---- helpers ----
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    function isVideo() {
+      return request.resource.contentType.matches('video/.*');
+    }
+    function isAudio() {
+      return request.resource.contentType.matches('audio/.*');
+    }
+    function maxSize(mb) {
+      return request.resource.size <= mb * 1024 * 1024;
+    }
+
+    // Profile photos — only the owner can write; replacement requires delete.
+    match /profileImages/{uid}/{fileName} {
+      allow read:          if isSignedIn();
+      allow create, update: if isOwner(uid) && isImage() && maxSize(5);
+      allow delete:        if isOwner(uid);
+    }
+
+    // Legacy per-user memory image uploads.
+    match /userUploads/{uid}/{fileName} {
+      allow read:          if isSignedIn();
+      allow create, update: if isOwner(uid) && isImage() && maxSize(5);
+      allow delete:        if isOwner(uid);
+    }
+
+    // Memory media. These paths carry no uid, so any signed-in user may
+    // manage them. Type and size are still enforced on upload.
+    match /memories/images/{fileName} {
+      allow read:   if isSignedIn();
+      allow create: if isSignedIn() && isImage() && maxSize(5);
+      allow delete: if isSignedIn();
+    }
+    match /memories/videos/{fileName} {
+      allow read:   if isSignedIn();
+      allow create: if isSignedIn() && isVideo() && maxSize(50);
+      allow delete: if isSignedIn();
+    }
+    match /memories/voice/{fileName} {
+      allow read:   if isSignedIn();
+      allow create: if isSignedIn() && isAudio() && maxSize(15);
+      allow delete: if isSignedIn();
+    }
+
+    // Everything else is denied by default.
+  }
+}

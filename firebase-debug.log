@@ -1,0 +1,20 @@
+[debug] [2026-06-05T07:32:37.262Z] ----------------------------------------------------------------------
+[debug] [2026-06-05T07:32:37.264Z] Command:       C:\Users\t54611\AppData\Local\Volta\tools\image\node\24.14.0\node.exe C:\Users\t54611\AppData\Local\Volta\tools\image\packages\firebase-tools\node_modules\firebase-tools\lib\bin\firebase.js use --add
+[debug] [2026-06-05T07:32:37.264Z] CLI Version:   15.19.1
+[debug] [2026-06-05T07:32:37.264Z] Platform:      win32
+[debug] [2026-06-05T07:32:37.264Z] Node Version:  v24.14.0
+[debug] [2026-06-05T07:32:37.265Z] Time:          Fri Jun 05 2026 16:32:37 GMT+0900 (日本標準時)
+[debug] [2026-06-05T07:32:37.265Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-06-05T07:32:37.444Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-06-05T07:32:37.444Z] > authorizing via signed-in user (jasmix555@gmail.com)
+[debug] [2026-06-05T07:32:37.445Z] Checked if tokens are valid: true, expires at: 1780648346540
+[debug] [2026-06-05T07:32:37.445Z] Checked if tokens are valid: true, expires at: 1780648346540
+[debug] [2026-06-05T07:32:37.445Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2026-06-05T07:32:48.522Z] *** [apiv2] error from fetch(https://firebase.googleapis.com/v1beta1/projects?pageSize=1000, {"headers":{},"method":"GET","signal":{"reason":""}}): FetchError: request to https://firebase.googleapis.com/v1beta1/projects?pageSize=1000 failed, reason: getaddrinfo ENOTFOUND firebase.googleapis.com
+[debug] [2026-06-05T07:32:48.522Z] Failed to make request to https://firebase.googleapis.com/v1beta1/projects?pageSize=1000
+[debug] [2026-06-05T07:32:48.831Z] FirebaseError: Failed to make request to https://firebase.googleapis.com/v1beta1/projects?pageSize=1000
+    at RetryOperation._fn (C:\Users\t54611\AppData\Local\Volta\tools\image\packages\firebase-tools\node_modules\firebase-tools\lib\apiv2.js:282:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+[error] 
+[error] Error: Failed to list Firebase projects. See firebase-debug.log for more info.

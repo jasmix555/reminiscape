@@ -1,0 +1,14 @@
+{
+  "indexes": [
+    {
+      "//": "memoryService.getUserMemories: where(createdBy.uid ==) + orderBy(createdAt desc)",
+      "collectionGroup": "memories",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdBy.uid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
