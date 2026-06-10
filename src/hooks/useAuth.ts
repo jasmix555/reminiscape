@@ -18,7 +18,10 @@ export function useAuth() {
   const checkProfileCompletion = (profile: UserProfile | null): boolean => {
     if (!profile) return false;
 
-    return Boolean(profile.username && profile.photoURL);
+    // A profile counts as "set up" once it has a username. The profile photo
+    // is optional in the setup form, so don't require it here — otherwise
+    // users without a photo get sent back to /setup-profile on every login.
+    return Boolean(profile.username);
   };
 
   useEffect(() => {

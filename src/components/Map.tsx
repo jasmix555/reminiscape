@@ -8,6 +8,7 @@ import React, {
 import Map, { Marker, NavigationControl, GeolocateControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { HiLocationMarker, HiPlus, HiLockClosed } from "react-icons/hi";
+import { MdLocationOff } from "react-icons/md";
 import Image from "next/image";
 import { getDistance } from "geolib";
 import Supercluster from "supercluster";
@@ -64,6 +65,7 @@ const MapComponent: React.FC = () => {
   const [hasMovedToUser, setHasMovedToUser] = useState(false);
   const geolocateControlRef = useRef<any>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [showLocationInfo, setShowLocationInfo] = useState(false);
 
   const cluster = useRef(
     new Supercluster<MemoryFeature["properties"], MemoryFeature["geometry"]>({
@@ -359,14 +361,25 @@ const MapComponent: React.FC = () => {
         />
       </Map>
 
-      {/* Persistent banner shown until a location fix is acquired. */}
+      {/* Location-off indicator: a slashed red button below the gear menu.
+          Tapping it toggles a small info box. Hidden once location connects. */}
       {!userLocation && (
-        <div className="absolute left-1/2 top-20 z-20 flex max-w-[90vw] -translate-x-1/2 items-center gap-2 rounded-full bg-amber-500/95 px-4 py-2 text-sm font-medium text-white shadow-lg">
-          <HiLocationMarker className="h-5 w-5 shrink-0" />
-          <span>
-            You&apos;re not connected to location. Enable it to create and
-            unlock memories near you.
-          </span>
+        <div className="absolute left-4 top-16 z-20 flex flex-col items-start gap-2">
+          <button
+            aria-label="Location not connected"
+            className="rounded-full border-2 border-gray-200 bg-red-500 p-2 text-white shadow-lg transition-colors hover:bg-red-600"
+            type="button"
+            onClick={() => setShowLocationInfo((prev) => !prev)}
+          >
+            <MdLocationOff className="h-5 w-5" />
+          </button>
+
+          {showLocationInfo && (
+            <div className="max-w-[16rem] rounded-lg bg-white p-3 text-sm text-gray-700 shadow-xl">
+              You&apos;re not connected to location. Enable location access to
+              create and unlock memories near you.
+            </div>
+          )}
         </div>
       )}
 
