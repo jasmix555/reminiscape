@@ -26,7 +26,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen bg-noise-pattern bg-cover bg-fixed bg-center">
+      <body
+        suppressHydrationWarning
+        className="min-h-screen bg-noise-pattern bg-cover bg-fixed bg-center"
+      >
         <AuthCheck />
         {children}
       </body>

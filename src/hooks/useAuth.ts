@@ -1,6 +1,6 @@
 // hooks/useAuth.ts
 import { useEffect, useState } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import Cookies from "js-cookie";
@@ -26,6 +26,44 @@ export function useAuth() {
       try {
         if (user) {
           setUser(user);
+
+          // Make sure the account still exists and isn't disabled. A forced
+          // token refresh fails for deleted/disabled accounts, so we sign out
+          // and clear the stale cookie — otherwise a "zombie" session keeps
+          // the user stuck (e.g. unable to load /welcome). Transient network
+          // failures are ignored so a briefly-offline user isn't logged out.
+          try {
+            await user.getIdToken(true);
+          } catch (refreshError) {
+            const code = (refreshError as { code?: string })?.code ?? "";
+
+            if (code !== "auth/network-request-failed") {
+              await signOut(auth).catch(() => {});
+              Cookies.remove("auth_token", { path: "/" });
+              router.push("/welcome");
+
+              return;
+            }
+          }
+
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          const userData = userDoc.exists()
+            ? (userDoc.data() as UserProfile)
+            : null;
+
+          setProfile(userData);
+          setIsProfileIncomplete(!checkProfileCompletion(userData));
+
+          // Email/password sign-ups must verify their email before entering
+          // the app (Google accounts are already verified). Until then we keep
+          // them where they are and withhold the session cookie that
+          // middleware uses to gate protected routes.
+          if (!user.emailVerified) {
+            Cookies.remove("auth_token", { path: "/" });
+
+            return;
+          }
+
           const token = await user.getIdToken();
 
           Cookies.set("auth_token", token, {
@@ -34,26 +72,12 @@ export function useAuth() {
             sameSite: "strict",
           });
 
-          const userDoc = await getDoc(doc(db, "users", user.uid));
+          const currentPath = window.location.pathname;
 
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as UserProfile;
-
-            setProfile(userData);
-            setIsProfileIncomplete(!checkProfileCompletion(userData));
-
-            const currentPath = window.location.pathname;
-
-            if (["/welcome", "/login", "/register"].includes(currentPath)) {
-              if (!checkProfileCompletion(userData)) {
-                router.push("/setup-profile");
-              } else {
-                router.push("/");
-              }
-            }
-          } else {
-            setIsProfileIncomplete(true);
-            router.push("/setup-profile");
+          if (["/welcome", "/login", "/register"].includes(currentPath)) {
+            router.push(
+              checkProfileCompletion(userData) ? "/" : "/setup-profile",
+            );
           }
         } else {
           setUser(null);
@@ -69,7 +93,18 @@ export function useAuth() {
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
+        // The session is unusable — clear it fully so we don't get stuck with
+        // a stale cookie that keeps redirecting away from public pages.
+        await signOut(auth).catch(() => {});
         Cookies.remove("auth_token", { path: "/" });
+
+        if (
+          !["/welcome", "/login", "/register"].includes(
+            window.location.pathname,
+          )
+        ) {
+          router.push("/welcome");
+        }
       } finally {
         setLoading(false);
       }

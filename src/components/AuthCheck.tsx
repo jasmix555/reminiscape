@@ -17,7 +17,9 @@ export default function AuthCheck() {
   // Check if the current route is the capture page
   const isCapturePage = pathname === "/capture";
 
-  return user && !isCapturePage ? ( // Render Header only if not on capture page
+  // Hide the app header for unverified users (e.g. the "verify your email"
+  // screen) — they haven't completed registration yet.
+  return user && user.emailVerified && !isCapturePage ? ( // Render Header only if not on capture page
     <>
       <Header />
       <div className=""> </div>

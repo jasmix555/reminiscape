@@ -97,6 +97,15 @@ const MapComponent: React.FC = () => {
 
     if (!map) return;
 
+    // Supercluster.getClusters() throws if load() was never called, which is
+    // the case when there are no memories yet. Just clear and bail so the map
+    // still pans freely (e.g. with location disabled / a brand-new account).
+    if (!memories.length) {
+      setClusters([]);
+
+      return;
+    }
+
     const bounds = map.getBounds();
     const zoom = Math.floor(viewState.zoom);
 
@@ -321,6 +330,12 @@ const MapComponent: React.FC = () => {
           positionOptions={{ enableHighAccuracy: true }}
           showUserLocation={true} // ✅ Ensures the user dot stays visible
           trackUserLocation={true}
+          onError={(error) => {
+            // Location denied/unavailable — keep the map usable and let the
+            // banner inform the user. Avoid noisy uncaught errors.
+            console.warn("Geolocation unavailable:", error?.message);
+            setUserLocation(null);
+          }}
           onGeolocate={(position) => {
             handleGeolocate(
               position,
@@ -343,6 +358,17 @@ const MapComponent: React.FC = () => {
           onUnlock={() => unlockMemory(selectedMemory, setSelectedMemory)}
         />
       </Map>
+
+      {/* Persistent banner shown until a location fix is acquired. */}
+      {!userLocation && (
+        <div className="absolute left-1/2 top-20 z-20 flex max-w-[90vw] -translate-x-1/2 items-center gap-2 rounded-full bg-amber-500/95 px-4 py-2 text-sm font-medium text-white shadow-lg">
+          <HiLocationMarker className="h-5 w-5 shrink-0" />
+          <span>
+            You&apos;re not connected to location. Enable it to create and
+            unlock memories near you.
+          </span>
+        </div>
+      )}
 
       <button
         className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10 bg-blue-500 text-white px-6 py-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
