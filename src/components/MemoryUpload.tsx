@@ -10,7 +10,13 @@ import {
 } from "react-icons/hi";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  uploadBytesResumable,
+  getDownloadURL,
+} from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 import { createPortal } from "react-dom";
 import { User } from "firebase/auth";
@@ -64,6 +70,78 @@ const isVideoFile = (file: File): boolean => {
   );
 };
 
+// Downscale + re-encode large photos before upload. Phone photos are often
+// several MB, which makes "planting a capsule" feel like it hangs on mobile.
+// Returns the original file if compression isn't applicable or wouldn't help.
+const MAX_IMAGE_DIMENSION = 1600; // px (longest edge)
+
+const compressImage = (file: File): Promise<File> =>
+  new Promise((resolve) => {
+    // Only compress raster photos; leave GIFs and anything non-image alone.
+    if (!file.type.startsWith("image/") || file.type === "image/gif") {
+      resolve(file);
+
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      const scale = Math.min(
+        1,
+        MAX_IMAGE_DIMENSION / Math.max(img.width, img.height),
+      );
+      const width = Math.round(img.width * scale);
+      const height = Math.round(img.height * scale);
+
+      const canvas = document.createElement("canvas");
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        resolve(file);
+
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          // Fall back to the original if encoding failed or didn't shrink it.
+          if (!blob || blob.size >= file.size) {
+            resolve(file);
+
+            return;
+          }
+
+          resolve(
+            new File(
+              [blob],
+              file.name.replace(/\.(png|webp|heic|heif|jpeg|jpg)$/i, ".jpg"),
+              { type: "image/jpeg" },
+            ),
+          );
+        },
+        "image/jpeg",
+        0.8,
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+
+    img.src = url;
+  });
+
 const MemoryUpload: React.FC<MemoryUploadProps> = ({
   location,
   onUpload,
@@ -77,6 +155,7 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
   const [notes, setNotes] = useState("");
   const [voiceMessage, setVoiceMessage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
@@ -211,42 +290,81 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
     videoUrls: string[];
   }> => {
     const storage = getStorage();
-    const uploadedImageUrls: string[] = [];
-    const uploadedVideoUrls: string[] = [];
 
-    for (const file of files) {
-      try {
-        const isVideo = isVideoFile(file);
-        const folder = isVideo ? "videos" : "images";
-        const storageRef = ref(
-          storage,
-          `memories/${folder}/${uuidv4()}-${file.name}`,
-        );
+    // Compress photos first (videos pass through untouched).
+    const prepared = await Promise.all(
+      files.map(async (original) => {
+        const isVideo = isVideoFile(original);
 
-        const metadata = {
-          contentType: getFileType(file),
-          customMetadata: {
-            originalName: file.name,
-            fileSize: file.size.toString(),
-          },
+        return {
+          original,
+          file: isVideo ? original : await compressImage(original),
+          isVideo,
         };
+      }),
+    );
 
-        const snapshot = await uploadBytes(storageRef, file, metadata);
-        const downloadUrl = await getDownloadURL(snapshot.ref);
+    // Aggregate real upload progress across all files so the UI reflects what
+    // actually reaches Firebase Storage (and surfaces errors instead of
+    // spinning forever).
+    const totalBytes = prepared.reduce((sum, p) => sum + p.file.size, 0) || 1;
+    const transferred = new Array(prepared.length).fill(0);
 
-        if (isVideo) {
-          uploadedVideoUrls.push(downloadUrl);
-        } else {
-          uploadedImageUrls.push(downloadUrl);
-        }
-      } catch (error) {
-        console.error("Error uploading file:", file.name, error);
-        toast.error(`Error uploading ${file.name}`);
-        throw error;
-      }
-    }
+    setUploadProgress(0);
 
-    return { imageUrls: uploadedImageUrls, videoUrls: uploadedVideoUrls };
+    const results = await Promise.all(
+      prepared.map(
+        ({ original, file, isVideo }, index) =>
+          new Promise<{ isVideo: boolean; downloadUrl: string }>(
+            (resolve, reject) => {
+              const folder = isVideo ? "videos" : "images";
+              const storageRef = ref(
+                storage,
+                `memories/${folder}/${uuidv4()}-${file.name}`,
+              );
+
+              const metadata = {
+                contentType: getFileType(file),
+                customMetadata: {
+                  originalName: original.name,
+                  fileSize: file.size.toString(),
+                },
+              };
+
+              const task = uploadBytesResumable(storageRef, file, metadata);
+
+              task.on(
+                "state_changed",
+                (snapshot) => {
+                  transferred[index] = snapshot.bytesTransferred;
+                  const sum = transferred.reduce((a, b) => a + b, 0);
+
+                  setUploadProgress(Math.round((sum / totalBytes) * 100));
+                },
+                (error) => {
+                  // Show the real Storage error (e.g. storage/unauthorized when
+                  // rules aren't deployed) so failures are diagnosable.
+                  console.error("Error uploading file:", original.name, error);
+                  toast.error(
+                    `Error uploading ${original.name}: ${error.code}`,
+                  );
+                  reject(error);
+                },
+                async () => {
+                  const downloadUrl = await getDownloadURL(task.snapshot.ref);
+
+                  resolve({ isVideo, downloadUrl });
+                },
+              );
+            },
+          ),
+      ),
+    );
+
+    return {
+      imageUrls: results.filter((r) => !r.isVideo).map((r) => r.downloadUrl),
+      videoUrls: results.filter((r) => r.isVideo).map((r) => r.downloadUrl),
+    };
   };
 
   const handleVoiceMessageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -333,6 +451,7 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
       toast.error("Failed to create memory. Please try again.");
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -550,7 +669,9 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
                 {uploading ? (
                   <>
                     <HiClock className="animate-spin" />
-                    Sealing Capsule...
+                    {uploadProgress > 0 && uploadProgress < 100
+                      ? `Sealing Capsule... ${uploadProgress}%`
+                      : "Sealing Capsule..."}
                   </>
                 ) : (
                   <>
