@@ -18,9 +18,9 @@ export default {
           faint: "#71717a",
         },
         surface: {
-          DEFAULT: "#16161a",
-          raised: "#1f1f24",
-          hover: "#2a2a30",
+          DEFAULT: "#26262c",
+          raised: "#303037",
+          hover: "#3c3c44",
         },
         accent: {
           DEFAULT: "#f5b942",

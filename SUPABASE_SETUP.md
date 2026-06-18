@@ -99,8 +99,8 @@ create policy "read own or friends' memories"
   on public.memories for select
   using (
     auth.uid() = user_id
-    or user_id = any (
-      (select friends from public.profiles where id = auth.uid())
+    or user_id in (
+      select unnest(friends) from public.profiles where id = auth.uid()
     )
   );
 
@@ -183,4 +183,4 @@ Supabase → Authentication → Providers → Google: enable and paste your Goog
 OAuth client ID/secret. Add `https://YOUR-PROJECT.supabase.co/auth/v1/callback`
 as an authorized redirect URI in Google Cloud Console.
 
-Done — `npm run dev` and sign up.
+Done — `npm run dev` and s

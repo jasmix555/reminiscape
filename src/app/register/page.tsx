@@ -1,6 +1,7 @@
 "use client";
 import { useState, FormEvent } from "react";
 import Link from "next/link";
+import { HiExclamationCircle } from "react-icons/hi";
 
 import { supabase } from "@/libs/supabaseClient";
 import { Loading } from "@/components";
@@ -10,28 +11,38 @@ export default function Register() {
   const { loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  const [resent, setResent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setError(null);
 
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+
+      return;
+    }
+
+    setIsSubmitting(true);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: `${window.location.origin}/` },
     });
 
+    setIsSubmitting(false);
+
     if (error) {
-      setError(error.message);
       console.error("Signup Error:", error);
+      setError(error.message || "Sign up failed. Please try again.");
 
       return;
     }
 
-    // If the project requires email confirmation there is no session yet.
     setHasSession(Boolean(data.session));
     setIsConfirming(true);
   };
@@ -40,20 +51,21 @@ export default function Register() {
     const { error } = await supabase.auth.resend({ type: "signup", email });
 
     if (error) setError(error.message);
-    else setError(null);
+    else {
+      setError(null);
+      setResent(true);
+    }
   };
 
   if (loading) return <Loading />;
 
+  const inputClass = `w-full rounded-xl border bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent ${
+    error ? "border-red-500/60" : "border-line"
+  }`;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 text-ink">
       <div className="glass-strong w-full max-w-md rounded-3xl p-8 shadow-glass-lg">
-        {error && (
-          <p className="mb-4 rounded-xl bg-red-500/15 p-3 text-center text-sm text-red-400">
-            {error}
-          </p>
-        )}
-
         {!isConfirming ? (
           <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
             <div className="text-center">
@@ -67,34 +79,61 @@ export default function Register() {
             <div className="flex flex-col gap-4">
               <input
                 required
+                aria-invalid={Boolean(error)}
                 autoComplete="email"
-                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                className={inputClass}
+                disabled={isSubmitting}
                 placeholder="Email address"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (error) setError(null);
+                }}
               />
               <input
                 required
+                aria-invalid={Boolean(error)}
                 autoComplete="new-password"
-                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                className={inputClass}
+                disabled={isSubmitting}
                 minLength={6}
                 placeholder="Password (min 6 characters)"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError(null);
+                }}
               />
+              {error && (
+                <p
+                  aria-live="assertive"
+                  className="flex items-center gap-1.5 text-sm text-red-400"
+                  role="alert"
+                >
+                  <HiExclamationCircle className="h-4 w-4 shrink-0" />
+                  {error}
+                </p>
+              )}
             </div>
             <button
-              className={`w-full rounded-full py-3 font-semibold transition ${
-                !email || !password
+              className={`flex w-full items-center justify-center gap-2 rounded-full py-3 font-semibold transition ${
+                !email || !password || isSubmitting
                   ? "cursor-not-allowed bg-white/10 text-ink-faint"
                   : "bg-accent text-black hover:bg-accent-soft"
               }`}
-              disabled={!email || !password}
+              disabled={!email || !password || isSubmitting}
               type="submit"
             >
-              Sign up
+              {isSubmitting ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Creating account...
+                </>
+              ) : (
+                "Sign up"
+              )}
             </button>
             <p className="text-center text-sm text-ink-muted">
               Already have an account?{" "}
@@ -122,11 +161,14 @@ export default function Register() {
               </Link>
               {!hasSession && (
                 <button
-                  className="text-sm text-ink-faint underline hover:text-ink"
+                  className="text-sm text-ink-faint underline transition-colors hover:text-ink disabled:opacity-50"
+                  disabled={resent}
                   type="button"
                   onClick={handleResend}
                 >
-                  Resend confirmation email
+                  {resent
+                    ? "Confirmation email sent"
+                    : "Resend confirmation email"}
                 </button>
               )}
             </div>

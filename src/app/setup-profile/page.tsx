@@ -3,6 +3,7 @@
 import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FaArrowLeft, FaArrowRightFromBracket } from "react-icons/fa6";
+import { HiExclamationCircle } from "react-icons/hi";
 
 import { uploadProfileImage } from "@/libs/profileUtils";
 import { supabase } from "@/libs/supabaseClient";
@@ -33,6 +34,7 @@ export default function SetupProfilePage() {
 
   const handleImageUpload = async (file: File) => {
     setImageLoading(true);
+    setError(null);
     try {
       const {
         data: { user },
@@ -43,9 +45,9 @@ export default function SetupProfilePage() {
 
         setProfileImageUrl(downloadURL);
       }
-    } catch (error) {
-      setError("Failed to upload image");
-      console.error(error);
+    } catch (err) {
+      setError("Failed to upload image. Please try again.");
+      console.error(err);
     } finally {
       setImageLoading(false);
     }
@@ -85,17 +87,17 @@ export default function SetupProfilePage() {
       if (error) throw error;
 
       router.push("/");
-    } catch (error) {
-      setError("Failed to save profile");
-      console.error("Error saving profile:", error);
+    } catch (err) {
+      setError("Failed to save profile. Please try again.");
+      console.error("Error saving profile:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  if (profileLoading) {
-    return <Loading />;
-  }
+  if (profileLoading) return <Loading />;
+
+  const busy = loading || imageLoading;
 
   return (
     <div className="min-h-screen bg-background text-ink">
@@ -116,7 +118,8 @@ export default function SetupProfilePage() {
 
         <div className="glass-strong rounded-3xl p-6 shadow-glass">
           {error && (
-            <p className="mb-4 rounded-xl bg-red-500/15 p-3 text-center text-sm text-red-400">
+            <p className="mb-4 flex items-center gap-1.5 rounded-xl bg-red-500/15 p-3 text-sm text-red-400">
+              <HiExclamationCircle className="h-4 w-4 shrink-0" />
               {error}
             </p>
           )}
@@ -134,7 +137,8 @@ export default function SetupProfilePage() {
               </label>
               <input
                 required
-                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent disabled:opacity-60"
+                disabled={busy}
                 placeholder="Enter your username"
                 type="text"
                 value={username}
@@ -147,7 +151,8 @@ export default function SetupProfilePage() {
                 Bio
               </label>
               <textarea
-                className="w-full resize-none rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                className="w-full resize-none rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent disabled:opacity-60"
+                disabled={busy}
                 placeholder="Tell us about yourself"
                 rows={4}
                 value={bio}
@@ -157,26 +162,34 @@ export default function SetupProfilePage() {
 
             <div className="flex justify-between gap-3">
               <button
-                className="rounded-xl bg-white/10 px-6 py-3 font-medium text-ink-muted transition-colors hover:bg-white/15"
+                className="rounded-xl bg-white/10 px-6 py-3 font-medium text-ink-muted transition-colors hover:bg-white/15 disabled:opacity-50"
+                disabled={busy}
                 type="button"
                 onClick={() => router.back()}
               >
                 Cancel
               </button>
               <button
-                className={`flex flex-1 items-center justify-center rounded-xl py-3 font-semibold transition-colors ${
-                  loading || imageLoading || !username
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 font-semibold transition-colors ${
+                  busy || !username
                     ? "cursor-not-allowed bg-accent/50 text-black/60"
                     : "bg-accent text-black hover:bg-accent-soft"
                 }`}
-                disabled={loading || imageLoading || !username}
+                disabled={busy || !username}
                 type="submit"
               >
-                {loading
-                  ? "Saving..."
-                  : profile?.username
-                    ? "Save Changes"
-                    : "Complete Setup"}
+                {loading ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Saving...
+                  </>
+                ) : imageLoading ? (
+                  "Uploading photo..."
+                ) : profile?.username ? (
+                  "Save Changes"
+                ) : (
+                  "Complete Setup"
+                )}
               </button>
             </div>
           </form>

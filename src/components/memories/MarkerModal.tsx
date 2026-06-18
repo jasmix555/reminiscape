@@ -11,7 +11,7 @@ import { FaLock } from "react-icons/fa6";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
-import MediaPopup from "../ui/MediaPopup"; // Import MediaPopup
+import MediaPopup from "../ui/MediaPopup";
 
 import { useMemories } from "@/hooks/useMemories";
 import { Memory } from "@/types";
@@ -25,6 +25,10 @@ interface MarkerModalProps {
   isNearMarker: boolean;
 }
 
+const Spinner = () => (
+  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+);
+
 const MarkerModal: React.FC<MarkerModalProps> = ({
   isOpen,
   onClose,
@@ -33,11 +37,13 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
   user,
   isNearMarker,
 }) => {
-  const { updateMemory, deleteMemory, refreshMemories } = useMemories();
+  const { updateMemory, deleteMemory } = useMemories();
 
   const [isEditing, setIsEditing] = useState(false);
   const [updatedTitle, setUpdatedTitle] = useState("");
   const [updatedNotes, setUpdatedNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
 
@@ -46,30 +52,35 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
   const isCurrentUserMemory = memory.createdBy.uid === user?.uid;
   const isMemoryUnlocked = memory.isUnlocked || isCurrentUserMemory;
 
-  const handleEditToggle = () => setIsEditing(!isEditing);
+  // Prefill the edit form with the current values (fixes blank fields on edit).
+  const startEdit = () => {
+    setUpdatedTitle(memory.title);
+    setUpdatedNotes(memory.notes ?? "");
+    setIsEditing(true);
+  };
 
   const handleSaveChanges = async () => {
-    if (!memory || !user) return;
+    if (!user) return;
 
-    try {
-      await updateMemory(memory.id, {
-        title: updatedTitle,
-        notes: updatedNotes,
-        imageUrls: memory.imageUrls,
-        videoUrls: memory.videoUrls,
-      });
+    if (!updatedTitle.trim()) {
+      toast.error("Title can't be empty.");
 
-      toast.success("Memory updated successfully!");
-      setIsEditing(false);
-      refreshMemories();
-    } catch (error) {
-      console.error("Failed to update memory", error);
-      toast.error("Failed to update memory.");
+      return;
     }
+
+    setSaving(true);
+    await updateMemory(memory.id, {
+      title: updatedTitle.trim(),
+      notes: updatedNotes.trim(),
+      imageUrls: memory.imageUrls,
+      videoUrls: memory.videoUrls,
+    });
+    setSaving(false);
+    setIsEditing(false);
   };
 
   const handleDeleteMemory = async () => {
-    if (!memory || !user) return;
+    if (!user) return;
 
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this memory? This action cannot be undone.",
@@ -77,15 +88,14 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
 
     if (!confirmDelete) return;
 
+    setDeleting(true);
     try {
       await deleteMemory(memory.id, memory);
-      toast.success("Memory deleted successfully!");
-
-      refreshMemories();
       onClose();
     } catch (error) {
       console.error("Failed to delete memory", error);
-      toast.error("Failed to delete memory.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -104,6 +114,7 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <button
+          aria-label="Close"
           className="ctrl-btn h-9 w-9 absolute top-4 right-4"
           onClick={onClose}
         >
@@ -117,7 +128,8 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
                 Title
               </span>
               <input
-                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent disabled:opacity-60"
+                disabled={saving}
                 type="text"
                 value={updatedTitle}
                 onChange={(e) => setUpdatedTitle(e.target.value)}
@@ -128,7 +140,8 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
                 Notes
               </span>
               <textarea
-                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent disabled:opacity-60"
+                disabled={saving}
                 rows={3}
                 value={updatedNotes}
                 onChange={(e) => setUpdatedNotes(e.target.value)}
@@ -136,39 +149,50 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
             </div>
             <div className="flex justify-between gap-3 font-medium">
               <button
-                className="flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2.5 text-ink-muted transition-colors hover:bg-white/15"
-                onClick={handleEditToggle}
+                className="flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2.5 text-ink-muted transition-colors hover:bg-white/15 disabled:opacity-50"
+                disabled={saving}
+                onClick={() => setIsEditing(false)}
               >
                 <HiXCircle className="inline w-5 h-5" /> Cancel
               </button>
               <button
-                className="flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-black transition-colors hover:bg-accent-soft"
+                className="flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-black transition-colors hover:bg-accent-soft disabled:opacity-60"
+                disabled={saving}
                 onClick={handleSaveChanges}
               >
-                <HiCheck className="inline w-5 h-5" /> Save
+                {saving ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  <>
+                    <HiCheck className="inline w-5 h-5" /> Save
+                  </>
+                )}
               </button>
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
-            <h3 className="font-bold text-lg">{memory.title}</h3>
-            <p className="text-sm text-gray-600">{memory.notes}</p>
+          <div className="space-y-3">
+            <h3 className="pr-10 text-lg font-bold">{memory.title}</h3>
+            {memory.notes && (
+              <p className="text-sm text-ink-muted">{memory.notes}</p>
+            )}
 
             {!isMemoryUnlocked ? (
               <>
-                {!isNearMarker && (
-                  <div className="text-white bg-red-500 p-2 rounded-lg text-center flex items-center gap-2 justify-center w-full">
+                {!isNearMarker ? (
+                  <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/15 p-3 text-center text-red-400">
                     <FaLock />
                     <p>Move closer to unlock this memory.</p>
                   </div>
-                )}
-                {isNearMarker && (
+                ) : (
                   <button
-                    className="text-white bg-blue-500 p-2 rounded-lg text-center flex items-center gap-2 justify-center w-full"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent p-3 text-center font-semibold text-black transition-colors hover:bg-accent-soft"
                     onClick={onUnlock}
                   >
                     <HiLockOpen className="inline w-5 h-5" />
-                    <p>Unlock Memory</p>
+                    <span>Unlock Memory</span>
                   </button>
                 )}
               </>
@@ -205,18 +229,27 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
             )}
 
             {isCurrentUserMemory && (
-              <div className="flex justify-between mt-4">
+              <div className="flex justify-between gap-3 pt-2 font-medium">
                 <button
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                  onClick={handleEditToggle}
+                  className="flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2.5 text-ink transition-colors hover:bg-white/15"
+                  onClick={startEdit}
                 >
                   <HiPencil className="inline w-5 h-5" /> Edit
                 </button>
                 <button
-                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                  className="flex items-center gap-1.5 rounded-xl border border-red-500/40 px-4 py-2.5 text-red-400 transition-colors hover:bg-red-500/15 disabled:opacity-50"
+                  disabled={deleting}
                   onClick={handleDeleteMemory}
                 >
-                  <HiTrash className="inline w-5 h-5" /> Delete
+                  {deleting ? (
+                    <>
+                      <Spinner /> Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <HiTrash className="inline w-5 h-5" /> Delete
+                    </>
+                  )}
                 </button>
               </div>
             )}

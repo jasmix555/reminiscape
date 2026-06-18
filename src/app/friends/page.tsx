@@ -18,7 +18,6 @@ import { supabase } from "@/libs/supabaseClient";
 import { UserProfile } from "@/types";
 import { Loading, Avatar } from "@/components";
 
-// Map a profiles row -> the UI's UserProfile shape.
 const mapProfile = (row: Record<string, any>): UserProfile => ({
   uid: row.id,
   email: row.email ?? "",
@@ -30,6 +29,10 @@ const mapProfile = (row: Record<string, any>): UserProfile => ({
   updatedAt: new Date(),
 });
 
+const Spinner = () => (
+  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+);
+
 const TABS = [
   { id: "friends", label: "Friends", icon: FaUsers },
   { id: "search", label: "Search", icon: FaSearch },
@@ -40,10 +43,11 @@ const FriendsPage = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const [selfId, setSelfId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [friendRequests, setFriendRequests] = useState<UserProfile[]>([]);
-  const [addingFriend, setAddingFriend] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"friends" | "search" | "requests">(
     "friends",
   );
@@ -55,8 +59,6 @@ const FriendsPage = () => {
     });
   }, []);
 
-  // Always read the caller's own friends / requests fresh from the DB so the
-  // lists reflect changes made via the RPCs.
   const fetchMyArrays = useCallback(async () => {
     if (!selfId) return { friends: [], friend_requests: [] };
 
@@ -133,7 +135,7 @@ const FriendsPage = () => {
       return;
     }
 
-    setAddingFriend(receiverId);
+    setBusyId(receiverId);
     const { error } = await supabase.rpc("send_friend_request", {
       target: receiverId,
     });
@@ -149,13 +151,16 @@ const FriendsPage = () => {
         ),
       );
     }
-    setAddingFriend(null);
+    setBusyId(null);
   };
 
   const handleAcceptRequest = async (senderId: string) => {
+    setBusyId(senderId);
     const { error } = await supabase.rpc("accept_friend_request", {
       sender: senderId,
     });
+
+    setBusyId(null);
 
     if (error) {
       console.error(error);
@@ -170,9 +175,12 @@ const FriendsPage = () => {
   };
 
   const handleDeclineRequest = async (senderId: string) => {
+    setBusyId(senderId);
     const { error } = await supabase.rpc("decline_friend_request", {
       sender: senderId,
     });
+
+    setBusyId(null);
 
     if (error) {
       console.error(error);
@@ -186,7 +194,10 @@ const FriendsPage = () => {
   };
 
   const handleRemoveFriend = async (friendId: string) => {
+    setBusyId(friendId);
     const { error } = await supabase.rpc("remove_friend", { friend: friendId });
+
+    setBusyId(null);
 
     if (error) {
       console.error(error);
@@ -205,9 +216,21 @@ const FriendsPage = () => {
     if (activeTab === "requests") fetchRequests();
   }, [activeTab, authLoading, fetchFriends, fetchRequests]);
 
+  // Debounced search — wait for a pause in typing before querying.
   useEffect(() => {
-    if (searchQuery.trim()) searchUsers();
-    else setSearchResults([]);
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+
+      return;
+    }
+
+    setSearching(true);
+    const t = setTimeout(() => {
+      searchUsers().finally(() => setSearching(false));
+    }, 350);
+
+    return () => clearTimeout(t);
   }, [searchQuery, searchUsers]);
 
   if (authLoading) return <Loading />;
@@ -263,10 +286,15 @@ const FriendsPage = () => {
                   </div>
                   <button
                     aria-label="Remove friend"
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-red-500/40 text-red-400 transition-colors hover:bg-red-500/15"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-red-500/40 text-red-400 transition-colors hover:bg-red-500/15 disabled:opacity-50"
+                    disabled={busyId === friend.uid}
                     onClick={() => handleRemoveFriend(friend.uid)}
                   >
-                    <FaTrash className="h-3.5 w-3.5" />
+                    {busyId === friend.uid ? (
+                      <Spinner />
+                    ) : (
+                      <FaTrash className="h-3.5 w-3.5" />
+                    )}
                   </button>
                 </div>
               ))
@@ -297,14 +325,20 @@ const FriendsPage = () => {
                   <div className="flex gap-2">
                     <button
                       aria-label="Accept"
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-black transition-colors hover:bg-accent-soft"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-black transition-colors hover:bg-accent-soft disabled:opacity-50"
+                      disabled={busyId === request.uid}
                       onClick={() => handleAcceptRequest(request.uid)}
                     >
-                      <FaCheck className="h-3.5 w-3.5" />
+                      {busyId === request.uid ? (
+                        <Spinner />
+                      ) : (
+                        <FaCheck className="h-3.5 w-3.5" />
+                      )}
                     </button>
                     <button
                       aria-label="Decline"
-                      className="flex h-9 w-9 items-center justify-center rounded-full border border-red-500/40 text-red-400 transition-colors hover:bg-red-500/15"
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-red-500/40 text-red-400 transition-colors hover:bg-red-500/15 disabled:opacity-50"
+                      disabled={busyId === request.uid}
                       onClick={() => handleDeclineRequest(request.uid)}
                     >
                       <FaTimes className="h-3.5 w-3.5" />
@@ -321,25 +355,32 @@ const FriendsPage = () => {
             <div className="relative">
               <FaSearch className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
               <input
-                className="w-full rounded-full border border-line bg-surface-raised py-3 pl-11 pr-4 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                className="w-full rounded-full border border-line bg-surface-raised py-3 pl-11 pr-10 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
                 placeholder="Search by username"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searching && (
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-faint">
+                  <Spinner />
+                </span>
+              )}
             </div>
 
             {searchResults.length === 0 ? (
               <p className="py-10 text-center text-sm text-ink-faint">
-                {searchQuery.trim()
-                  ? "No users found."
-                  : "Search for friends by username."}
+                {searching
+                  ? "Searching..."
+                  : searchQuery.trim()
+                    ? "No users found."
+                    : "Search for friends by username."}
               </p>
             ) : (
               <div className="space-y-2">
                 {searchResults.map((result) => {
                   const requestPending =
-                    addingFriend === result.uid || result.requestSent;
+                    busyId === result.uid || result.requestSent;
                   const disabled = isSelf(result.uid) || requestPending;
 
                   return (
@@ -364,7 +405,11 @@ const FriendsPage = () => {
                         disabled={disabled}
                         onClick={() => handleSendFriendRequest(result.uid)}
                       >
-                        {requestPending ? (
+                        {busyId === result.uid ? (
+                          <>
+                            <Spinner /> Sending
+                          </>
+                        ) : result.requestSent ? (
                           <>
                             <FaUserCheck className="h-3.5 w-3.5" /> Sent
                           </>

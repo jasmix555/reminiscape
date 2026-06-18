@@ -17,7 +17,6 @@ const mapRow = (row: Record<string, any>, selfUid: string): Memory => ({
   imageUrls: row.image_urls ?? [],
   videoUrls: row.video_urls ?? [],
   voiceMessageUrl: row.voice_message_url ?? "",
-  // Own memories are always unlocked; others honour the stored flag.
   isUnlocked: row.user_id === selfUid ? true : Boolean(row.is_unlocked),
   createdBy: {
     uid: row.user_id,
@@ -156,7 +155,6 @@ export const useMemories = () => {
 
       if (memoryData.voiceMessageUrl) urls.push(memoryData.voiceMessageUrl);
 
-      // Remove media first (best effort), then the row.
       await Promise.allSettled(urls.map((u) => deleteMediaByUrl(u)));
 
       const { error } = await supabase

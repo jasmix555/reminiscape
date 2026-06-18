@@ -4,9 +4,9 @@
 
 /* ===== Design tokens ===== */
 :root {
-  --background: #0e0e11;
+  --background: #18181b;
   --foreground: #f5f5f7;
-  --glass-bg: rgba(20, 20, 24, 0.6);
+  --glass-bg: rgba(34, 34, 39, 0.62);
   --glass-border: rgba(255, 255, 255, 0.12);
 }
 
@@ -34,7 +34,7 @@ body {
   }
 
   .glass-strong {
-    background: rgba(15, 15, 18, 0.85);
+    background: rgba(26, 26, 30, 0.86);
     -webkit-backdrop-filter: blur(28px) saturate(160%);
     backdrop-filter: blur(28px) saturate(160%);
     border: 1px solid var(--glass-border);
@@ -45,7 +45,7 @@ body {
     @apply glass flex items-center justify-center rounded-full text-ink shadow-glass transition-all duration-200;
   }
   .ctrl-btn:hover {
-    background: rgba(42, 42, 48, 0.8);
+    background: rgba(58, 58, 65, 0.8);
     @apply scale-105;
   }
   .ctrl-btn:active {

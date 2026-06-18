@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
+import { HiExclamationCircle } from "react-icons/hi";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -16,21 +17,24 @@ export default function Login() {
   const [password, setPassword] = useState<string>("");
   const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
   const router = useRouter();
 
-  if (loading) return <Loading />;
-  if (user) {
-    router.push("/");
+  // Redirect after render (never call router.push during render).
+  useEffect(() => {
+    if (!loading && user) router.push("/");
+  }, [loading, user, router]);
 
-    return null;
-  }
+  if (loading) return <Loading />;
+  if (user) return null;
 
   const togglePasswordVisibility = () => setIsPasswordVisible((prev) => !prev);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    setIsSubmitting(true);
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -39,7 +43,14 @@ export default function Login() {
 
     if (error) {
       console.error(error);
-      setError("Login failed. Incorrect email address or password.");
+      // Supabase returns a generic "Invalid login credentials" for both wrong
+      // email and wrong password — surface it clearly under the fields.
+      setError(
+        error.message?.toLowerCase().includes("invalid")
+          ? "Incorrect email or password. Please try again."
+          : error.message || "Login failed. Please try again.",
+      );
+      setIsSubmitting(false);
 
       return;
     }
@@ -48,6 +59,7 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
+    setError(null);
     setIsGoogleLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -56,11 +68,18 @@ export default function Login() {
 
     if (error) {
       console.error("Google Sign-In Error: ", error);
-      setError("Google Sign-In failed.");
+      setError("Google sign-in failed. Please try again.");
       setIsGoogleLoading(false);
     }
-    // On success the browser redirects to Google, so no further action here.
   };
+
+  const busy = isSubmitting || isGoogleLoading;
+  // Highlight both fields when there's an auth error (it could be either one).
+  const inputClass = `w-full rounded-xl border bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:ring-2 focus:ring-accent ${
+    error
+      ? "border-red-500/60 focus:border-transparent"
+      : "border-line focus:border-transparent"
+  }`;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 text-ink">
@@ -74,24 +93,34 @@ export default function Login() {
           <div className="flex flex-col gap-4">
             <input
               required
+              aria-invalid={Boolean(error)}
               aria-label="Email Address"
               autoComplete="email"
-              className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+              className={inputClass}
+              disabled={busy}
               placeholder="Email address"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (error) setError(null);
+              }}
             />
             <div className="relative">
               <input
                 required
+                aria-invalid={Boolean(error)}
                 aria-label="Password"
                 autoComplete="current-password"
-                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 pr-11 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                className={`${inputClass} pr-11`}
+                disabled={busy}
                 placeholder="Password"
                 type={isPasswordVisible ? "text" : "password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError(null);
+                }}
               />
               <button
                 aria-label={
@@ -108,27 +137,37 @@ export default function Login() {
                 )}
               </button>
             </div>
+
+            {/* Inline error directly under the fields */}
             {error && (
               <p
                 aria-live="assertive"
-                className="text-center text-sm text-red-400"
+                className="flex items-center gap-1.5 text-sm text-red-400"
                 role="alert"
               >
+                <HiExclamationCircle className="h-4 w-4 shrink-0" />
                 {error}
               </p>
             )}
           </div>
 
           <button
-            className={`w-full rounded-full py-3 font-semibold transition ${
-              email && password
+            className={`flex w-full items-center justify-center gap-2 rounded-full py-3 font-semibold transition ${
+              email && password && !busy
                 ? "bg-accent text-black hover:bg-accent-soft"
                 : "cursor-not-allowed bg-white/10 text-ink-faint"
             }`}
-            disabled={!email || !password}
+            disabled={!email || !password || busy}
             type="submit"
           >
-            Log in
+            {isSubmitting ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Logging in...
+              </>
+            ) : (
+              "Log in"
+            )}
           </button>
 
           <div className="flex items-center gap-4">
@@ -140,18 +179,23 @@ export default function Login() {
           <button
             aria-label="Sign in with Google"
             className={`flex w-full items-center justify-center gap-2 rounded-full border border-line bg-white py-3 font-semibold text-gray-700 transition ${
-              isGoogleLoading
-                ? "cursor-not-allowed opacity-50"
-                : "hover:bg-gray-100"
+              busy ? "cursor-not-allowed opacity-50" : "hover:bg-gray-100"
             }`}
-            disabled={isGoogleLoading}
+            disabled={busy}
             type="button"
             onClick={handleGoogleSignIn}
           >
-            <Image alt="Google" height={20} src="/google.svg" width={20} />
-            <span>
-              {isGoogleLoading ? "Signing in..." : "Sign in with Google"}
-            </span>
+            {isGoogleLoading ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                Signing in...
+              </>
+            ) : (
+              <>
+                <Image alt="Google" height={20} src="/google.svg" width={20} />
+                <span>Sign in with Google</span>
+              </>
+            )}
           </button>
 
           <p className="text-center text-sm text-ink-muted">
