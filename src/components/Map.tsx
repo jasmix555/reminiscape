@@ -5,9 +5,14 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import Map, { Marker, NavigationControl, GeolocateControl } from "react-map-gl";
+import Map, { Marker, GeolocateControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { HiLocationMarker, HiPlus, HiLockClosed } from "react-icons/hi";
+import {
+  HiLocationMarker,
+  HiPlus,
+  HiMinus,
+  HiLockClosed,
+} from "react-icons/hi";
 import { MdLocationOff } from "react-icons/md";
 import Image from "next/image";
 import { getDistance } from "geolib";
@@ -203,7 +208,7 @@ const MapComponent: React.FC = () => {
             longitude={longitude}
           >
             <div
-              className="bg-blue-600/75 hover:bg-blue-600 text-white text-sm font-bold p-2 flex items-center justify-center rounded-lg shadow-md cursor-pointer z-10 transform hover:scale-110 transition-transform"
+              className="glass text-ink text-sm font-semibold px-3 py-2 flex items-center justify-center rounded-full shadow-glass cursor-pointer z-10 transform hover:scale-110 transition-transform ring-1 ring-accent/40"
               onClick={() => {
                 if (!cluster.current) return;
                 handleClusterClick(
@@ -245,24 +250,26 @@ const MapComponent: React.FC = () => {
             }}
           >
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 ${
-                isUnlocked ? "bg-white border-gray-200" : "bg-gray-400"
+              className={`w-11 h-11 rounded-full flex items-center justify-center shadow-glass border-2 ${
+                isUnlocked
+                  ? "border-accent bg-surface"
+                  : "glass border-white/20"
               }`}
             >
               {isUnlocked ? (
                 imageUrl ? (
                   <Image
                     alt="Memory thumbnail"
-                    className="w-8 h-8 rounded-full object-cover"
-                    height={32}
+                    className="w-9 h-9 rounded-full object-cover"
+                    height={36}
                     src={imageUrl}
-                    width={32}
+                    width={36}
                   />
                 ) : (
-                  <HiLocationMarker className="w-6 h-6 text-blue-500" />
+                  <HiLocationMarker className="w-6 h-6 text-accent" />
                 )
               ) : (
-                <HiLockClosed className="w-6 h-6 text-white" />
+                <HiLockClosed className="w-5 h-5 text-ink-muted" />
               )}
             </div>
           </div>
@@ -298,11 +305,27 @@ const MapComponent: React.FC = () => {
         {/* Only render MapLayers when the map is fully loaded */}
         {isMapLoaded && <MapLayers mapRef={mapRef} />}
 
-        <div className="absolute right-3  top-44  z-10 flex flex-col gap-2">
-          <NavigationControl showZoom={true} />
-
+        <div className="absolute right-4 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-2">
           <button
-            className="p-2 rounded-full border-gray-200 border-2 shadow-lg bg-white text-gray-700 hover:bg-gray-200"
+            aria-label="Zoom in"
+            className="ctrl-btn h-10 w-10"
+            type="button"
+            onClick={() => mapRef.current?.getMap()?.zoomIn()}
+          >
+            <HiPlus className="w-5 h-5 text-ink" />
+          </button>
+          <button
+            aria-label="Zoom out"
+            className="ctrl-btn h-10 w-10"
+            type="button"
+            onClick={() => mapRef.current?.getMap()?.zoomOut()}
+          >
+            <HiMinus className="w-5 h-5 text-ink" />
+          </button>
+          <button
+            aria-label="Center on my location"
+            className="ctrl-btn h-10 w-10"
+            type="button"
             onClick={() =>
               handleLocateClick(
                 userLocation,
@@ -312,7 +335,7 @@ const MapComponent: React.FC = () => {
               )
             }
           >
-            <HiLocationMarker className="w-5 h-5" />
+            <HiLocationMarker className="w-5 h-5 text-accent" />
           </button>
         </div>
 
@@ -322,7 +345,7 @@ const MapComponent: React.FC = () => {
             longitude={userLocation.longitude}
           >
             <div className="relative pb-10 z-50">
-              <HiLocationMarker className="w-8 h-8 text-blue-500 animate-bounce" />
+              <HiLocationMarker className="w-8 h-8 text-accent drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] animate-bounce" />
             </div>
           </Marker>
         )}
@@ -361,21 +384,21 @@ const MapComponent: React.FC = () => {
         />
       </Map>
 
-      {/* Location-off indicator: a slashed red button below the gear menu.
+      {/* Location-off indicator: a slashed red button below the menu.
           Tapping it toggles a small info box. Hidden once location connects. */}
       {!userLocation && (
-        <div className="absolute left-4 top-16 z-20 flex flex-col items-start gap-2">
+        <div className="absolute left-4 top-20 z-20 flex flex-col items-start gap-2">
           <button
             aria-label="Location not connected"
-            className="rounded-full border-2 border-gray-200 bg-red-500 p-2 text-white shadow-lg transition-colors hover:bg-red-600"
+            className="ctrl-btn h-10 w-10 ring-1 ring-red-500/50"
             type="button"
             onClick={() => setShowLocationInfo((prev) => !prev)}
           >
-            <MdLocationOff className="h-5 w-5" />
+            <MdLocationOff className="h-5 w-5 text-red-400" />
           </button>
 
           {showLocationInfo && (
-            <div className="max-w-[16rem] rounded-lg bg-white p-3 text-sm text-gray-700 shadow-xl">
+            <div className="glass max-w-[16rem] rounded-2xl p-3 text-sm text-ink-muted shadow-glass">
               You&apos;re not connected to location. Enable location access to
               create and unlock memories near you.
             </div>
@@ -384,7 +407,7 @@ const MapComponent: React.FC = () => {
       )}
 
       <button
-        className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10 bg-blue-500 text-white px-6 py-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
+        className="absolute bottom-[max(2rem,env(safe-area-inset-bottom))] left-1/2 z-10 flex -translate-x-1/2 transform items-center gap-2 rounded-full bg-accent px-7 py-3.5 font-semibold text-black shadow-glass-lg transition-all duration-200 hover:bg-accent-soft hover:scale-[1.03] active:scale-95"
         onClick={() =>
           handleCreateMemory(user, profile, userLocation, setShowUploadModal)
         }

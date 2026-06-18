@@ -96,49 +96,53 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4"
+      className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm p-4 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto relative"
+        className="glass-strong thin-scroll text-ink rounded-3xl shadow-glass-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto relative"
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="bg-slate-100 border rounded-full p-2 hover:bg-slate-200 transition-colors absolute top-4 right-4"
+          className="ctrl-btn h-9 w-9 absolute top-4 right-4"
           onClick={onClose}
         >
-          <HiX className="w-6 h-6 text-black" />
+          <HiX className="w-5 h-5 text-ink" />
         </button>
 
         {isEditing ? (
-          <div className="space-y-4">
+          <div className="space-y-4 pt-2">
             <div className="space-y-2">
-              <span className="font-bold text-lg">Title</span>
+              <span className="text-sm font-semibold text-ink-muted">
+                Title
+              </span>
               <input
-                className="w-full border p-2 rounded"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
                 type="text"
                 value={updatedTitle}
                 onChange={(e) => setUpdatedTitle(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <span className="font-bold text-lg">Notes</span>
+              <span className="text-sm font-semibold text-ink-muted">
+                Notes
+              </span>
               <textarea
-                className="w-full border p-2 rounded"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
                 rows={3}
                 value={updatedNotes}
                 onChange={(e) => setUpdatedNotes(e.target.value)}
               />
             </div>
-            <div className="flex justify-between font-bold">
+            <div className="flex justify-between gap-3 font-medium">
               <button
-                className="px-4 py-2 bg-gray-300 text-white rounded-lg hover:bg-gray-400 transition-colors"
+                className="flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2.5 text-ink-muted transition-colors hover:bg-white/15"
                 onClick={handleEditToggle}
               >
                 <HiXCircle className="inline w-5 h-5" /> Cancel
               </button>
               <button
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                className="flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-black transition-colors hover:bg-accent-soft"
                 onClick={handleSaveChanges}
               >
                 <HiCheck className="inline w-5 h-5" /> Save

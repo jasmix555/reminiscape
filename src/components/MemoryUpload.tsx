@@ -7,15 +7,17 @@ import {
   HiX,
   HiPhotograph,
   HiPlay,
+  HiMicrophone,
 } from "react-icons/hi";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import {
   getStorage,
   ref,
-  uploadBytes,
   uploadBytesResumable,
   getDownloadURL,
+  deleteObject,
+  StorageReference,
 } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 import { createPortal } from "react-dom";
@@ -29,9 +31,10 @@ import { Memory, UserProfile } from "@/types";
 // Constants
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_IMAGE_DIMENSION = 1600; // px (longest edge)
 
 interface MemoryUploadProps {
-  user: User | null; // Add this line
+  user: User | null;
   profile: UserProfile | null;
   isOpen: boolean;
   location: { latitude: number; longitude: number };
@@ -41,7 +44,7 @@ interface MemoryUploadProps {
   onClose: () => void;
 }
 
-// Helper Functions
+// ===== Helpers =====
 const getFileType = (file: File): string => {
   const extension = file.name.split(".").pop()?.toLowerCase();
   const mimeTypes: Record<string, string> = {
@@ -70,14 +73,28 @@ const isVideoFile = (file: File): boolean => {
   );
 };
 
-// Downscale + re-encode large photos before upload. Phone photos are often
-// several MB, which makes "planting a capsule" feel like it hangs on mobile.
-// Returns the original file if compression isn't applicable or wouldn't help.
-const MAX_IMAGE_DIMENSION = 1600; // px (longest edge)
+// Translate Firebase Storage error codes into language a user can act on.
+const friendlyStorageError = (code?: string): string => {
+  switch (code) {
+    case "storage/unauthorized":
+      return "You don't have permission to upload. Make sure you're signed in.";
+    case "storage/canceled":
+      return "Upload was canceled.";
+    case "storage/quota-exceeded":
+      return "Storage is full. Please try again later.";
+    case "storage/retry-limit-exceeded":
+      return "Your connection is too slow and the upload timed out. Try again.";
+    case "storage/unauthenticated":
+      return "Your session expired. Please sign in again.";
+    default:
+      return "Something went wrong while uploading. Please try again.";
+  }
+};
 
+// Downscale + re-encode large photos before upload so "sealing a capsule"
+// doesn't hang on mobile. Returns the original if compression won't help.
 const compressImage = (file: File): Promise<File> =>
   new Promise((resolve) => {
-    // Only compress raster photos; leave GIFs and anything non-image alone.
     if (!file.type.startsWith("image/") || file.type === "image/gif") {
       resolve(file);
 
@@ -96,7 +113,6 @@ const compressImage = (file: File): Promise<File> =>
       );
       const width = Math.round(img.width * scale);
       const height = Math.round(img.height * scale);
-
       const canvas = document.createElement("canvas");
 
       canvas.width = width;
@@ -114,7 +130,6 @@ const compressImage = (file: File): Promise<File> =>
 
       canvas.toBlob(
         (blob) => {
-          // Fall back to the original if encoding failed or didn't shrink it.
           if (!blob || blob.size >= file.size) {
             resolve(file);
 
@@ -142,6 +157,8 @@ const compressImage = (file: File): Promise<File> =>
     img.src = url;
   });
 
+type UploadKind = "image" | "video" | "voice";
+
 const MemoryUpload: React.FC<MemoryUploadProps> = ({
   location,
   onUpload,
@@ -166,23 +183,25 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
     };
   }, [previewUrls]);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    console.log(
-      "Accepted files:",
-      acceptedFiles.map((f) => ({
-        name: f.name,
-        type: f.type,
-        size: f.size,
-      })),
-    );
+  // Close on Escape (unless mid-upload, to avoid orphaned uploads).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !uploading) onClose();
+    };
 
+    document.addEventListener("keydown", onKey);
+
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose, uploading]);
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
     const validFiles = acceptedFiles.filter((file) => {
       const isVideo = isVideoFile(file);
       const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
 
       if (file.size > maxSize) {
         toast.error(
-          `File ${file.name} is too large (max ${isVideo ? "50MB" : "5MB"})`,
+          `${file.name} is too large (max ${isVideo ? "50MB" : "5MB"})`,
         );
 
         return false;
@@ -206,12 +225,6 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
       setFiles((prev) => [...prev, file]);
       setFileTypes((prev) => [...prev, fileType]);
       setPreviewUrls((prev) => [...prev, url]);
-
-      console.log("Added file:", {
-        name: file.name,
-        type: fileType,
-        url: url,
-      });
     });
   }, []);
 
@@ -227,11 +240,10 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
     maxSize: MAX_VIDEO_SIZE,
     onDropRejected: (fileRejections) => {
       fileRejections.forEach(({ file, errors }) => {
-        console.log("Rejected file:", file.name, file.type, errors);
         const errorMessages = errors.map((e) => {
           switch (e.code) {
             case "file-too-large":
-              return `File ${file.name} is too large`;
+              return `${file.name} is too large`;
             case "file-invalid-type":
               return `File type not supported: ${file.name}`;
             default:
@@ -253,117 +265,119 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
     const file = files[index];
 
     console.error("Video error:", {
-      file: file.name,
-      type: file.type,
+      file: file?.name,
+      type: file?.type,
       error: error?.code,
-      message: error?.message,
     });
 
-    let errorMessage = "Error loading video preview. ";
-
-    if (error) {
-      switch (error.code) {
-        case MediaError.MEDIA_ERR_ABORTED:
-          errorMessage += "The video playback was aborted.";
-          break;
-        case MediaError.MEDIA_ERR_NETWORK:
-          errorMessage += "A network error occurred while loading the video.";
-          break;
-        case MediaError.MEDIA_ERR_DECODE:
-          errorMessage += "The video format is not supported by your browser.";
-          break;
-        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-          errorMessage += "The video format or MIME type is not supported.";
-          break;
-        default:
-          errorMessage += "An unknown error occurred.";
-      }
-    } else {
-      errorMessage += "Please try a different video format (e.g., MP4).";
-    }
-
-    toast.error(errorMessage);
+    toast.error(
+      "Couldn't preview this video. Try a different format (e.g. MP4).",
+    );
   };
 
-  const uploadFilesToFirebase = async (): Promise<{
+  // Upload every asset (images, videos, voice) in one pass with a single
+  // aggregated progress bar. If ANY asset fails, the ones that already
+  // succeeded are deleted so we never leave orphaned files in Storage.
+  const uploadAllToFirebase = async (): Promise<{
     imageUrls: string[];
     videoUrls: string[];
+    voiceMessageUrl: string;
   }> => {
     const storage = getStorage();
 
-    // Compress photos first (videos pass through untouched).
-    const prepared = await Promise.all(
-      files.map(async (original) => {
-        const isVideo = isVideoFile(original);
+    const prepared: { kind: UploadKind; file: File; original: File }[] =
+      await Promise.all(
+        files.map(async (original) => {
+          const isVideo = isVideoFile(original);
 
-        return {
-          original,
-          file: isVideo ? original : await compressImage(original),
-          isVideo,
-        };
-      }),
-    );
+          return {
+            kind: (isVideo ? "video" : "image") as UploadKind,
+            file: isVideo ? original : await compressImage(original),
+            original,
+          };
+        }),
+      );
 
-    // Aggregate real upload progress across all files so the UI reflects what
-    // actually reaches Firebase Storage (and surfaces errors instead of
-    // spinning forever).
+    if (voiceMessage) {
+      prepared.push({
+        kind: "voice",
+        file: voiceMessage,
+        original: voiceMessage,
+      });
+    }
+
     const totalBytes = prepared.reduce((sum, p) => sum + p.file.size, 0) || 1;
     const transferred = new Array(prepared.length).fill(0);
+    const uploadedRefs: StorageReference[] = [];
 
     setUploadProgress(0);
 
-    const results = await Promise.all(
-      prepared.map(
-        ({ original, file, isVideo }, index) =>
-          new Promise<{ isVideo: boolean; downloadUrl: string }>(
-            (resolve, reject) => {
-              const folder = isVideo ? "videos" : "images";
-              const storageRef = ref(
-                storage,
-                `memories/${folder}/${uuidv4()}-${file.name}`,
-              );
-
-              const metadata = {
-                contentType: getFileType(file),
-                customMetadata: {
-                  originalName: original.name,
-                  fileSize: file.size.toString(),
-                },
-              };
-
-              const task = uploadBytesResumable(storageRef, file, metadata);
-
-              task.on(
-                "state_changed",
-                (snapshot) => {
-                  transferred[index] = snapshot.bytesTransferred;
-                  const sum = transferred.reduce((a, b) => a + b, 0);
-
-                  setUploadProgress(Math.round((sum / totalBytes) * 100));
-                },
-                (error) => {
-                  // Show the real Storage error (e.g. storage/unauthorized when
-                  // rules aren't deployed) so failures are diagnosable.
-                  console.error("Error uploading file:", original.name, error);
-                  toast.error(
-                    `Error uploading ${original.name}: ${error.code}`,
-                  );
-                  reject(error);
-                },
-                async () => {
-                  const downloadUrl = await getDownloadURL(task.snapshot.ref);
-
-                  resolve({ isVideo, downloadUrl });
-                },
-              );
+    const tasks = prepared.map(
+      ({ kind, file, original }, index) =>
+        new Promise<{ kind: UploadKind; url: string }>((resolve, reject) => {
+          const folder =
+            kind === "voice" ? "voice" : kind === "video" ? "videos" : "images";
+          const storageRef = ref(
+            storage,
+            `memories/${folder}/${uuidv4()}-${file.name}`,
+          );
+          const metadata = {
+            contentType: getFileType(file),
+            customMetadata: {
+              originalName: original.name,
+              fileSize: file.size.toString(),
             },
-          ),
-      ),
+          };
+
+          const task = uploadBytesResumable(storageRef, file, metadata);
+
+          task.on(
+            "state_changed",
+            (snapshot) => {
+              transferred[index] = snapshot.bytesTransferred;
+              const sum = transferred.reduce((a, b) => a + b, 0);
+
+              setUploadProgress(Math.round((sum / totalBytes) * 100));
+            },
+            (error) => {
+              console.error("Upload failed:", original.name, error);
+              reject(error);
+            },
+            async () => {
+              uploadedRefs.push(storageRef);
+              const url = await getDownloadURL(task.snapshot.ref);
+
+              resolve({ kind, url });
+            },
+          );
+        }),
     );
 
+    const results = await Promise.allSettled(tasks);
+    const failures = results.filter(
+      (r): r is PromiseRejectedResult => r.status === "rejected",
+    );
+
+    if (failures.length > 0) {
+      // Roll back anything that made it through so Storage stays clean.
+      await Promise.allSettled(uploadedRefs.map((r) => deleteObject(r)));
+
+      const code = (failures[0].reason as { code?: string })?.code;
+
+      throw new Error(friendlyStorageError(code));
+    }
+
+    const ok = results
+      .filter(
+        (r): r is PromiseFulfilledResult<{ kind: UploadKind; url: string }> =>
+          r.status === "fulfilled",
+      )
+      .map((r) => r.value);
+
     return {
-      imageUrls: results.filter((r) => !r.isVideo).map((r) => r.downloadUrl),
-      videoUrls: results.filter((r) => r.isVideo).map((r) => r.downloadUrl),
+      imageUrls: ok.filter((x) => x.kind === "image").map((x) => x.url),
+      videoUrls: ok.filter((x) => x.kind === "video").map((x) => x.url),
+      voiceMessageUrl: ok.find((x) => x.kind === "voice")?.url || "",
     };
   };
 
@@ -385,7 +399,7 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
     }
 
     setVoiceMessage(file);
-    toast.success("Voice message added successfully");
+    toast.success("Voice message added");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -398,40 +412,21 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
     }
 
     if (!files.length) {
-      toast.error("Please add at least one image or video");
+      toast.error("Please add at least one photo or video");
 
       return;
     }
 
     if (!title.trim()) {
-      toast.error("Please enter a title");
+      toast.error("Please give your capsule a title");
 
       return;
     }
 
     try {
       setUploading(true);
-      const { imageUrls, videoUrls } = await uploadFilesToFirebase();
-      let voiceMessageUrl = "";
-
-      if (voiceMessage) {
-        const storage = getStorage();
-        const voiceRef = ref(
-          storage,
-          `memories/voice/${uuidv4()}-${voiceMessage.name}`,
-        );
-
-        const metadata = {
-          contentType: voiceMessage.type,
-          customMetadata: {
-            originalName: voiceMessage.name,
-            fileSize: voiceMessage.size.toString(),
-          },
-        };
-
-        await uploadBytes(voiceRef, voiceMessage, metadata);
-        voiceMessageUrl = await getDownloadURL(voiceRef);
-      }
+      const { imageUrls, videoUrls, voiceMessageUrl } =
+        await uploadAllToFirebase();
 
       await onUpload({
         title: title.trim(),
@@ -444,11 +439,15 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
         isUnlocked: false,
       });
 
-      toast.success("Memory created successfully!");
+      toast.success("Time capsule sealed!");
       onClose();
     } catch (error) {
       console.error("Error creating memory:", error);
-      toast.error("Failed to create memory. Please try again.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to create memory. Please try again.",
+      );
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -469,40 +468,47 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
 
   const modalContent = (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000] p-4 backdrop-blur-sm memory-modal"
+      className="memory-modal fixed inset-0 z-[1000] flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in sm:items-center sm:p-4"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !uploading) onClose();
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="p-6 space-y-6">
+      <div className="glass-strong thin-scroll animate-sheet-up max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl text-ink shadow-glass-lg sm:rounded-3xl">
+        {/* Grab handle (mobile sheet affordance) */}
+        <div className="flex justify-center pt-3 sm:hidden">
+          <div className="h-1.5 w-10 rounded-full bg-white/20" />
+        </div>
+
+        <div className="space-y-6 p-6">
           {/* Header */}
-          <div className="flex justify-between items-center">
+          <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">
+              <h2 className="text-2xl font-bold tracking-tight text-ink">
                 Create Time Capsule
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="mt-1 text-sm text-ink-faint">
                 Preserve this moment in time
               </p>
             </div>
             <button
-              className="text-gray-500 hover:text-gray-700 transition-colors p-2 hover:bg-gray-100 rounded-full"
+              className="ctrl-btn h-9 w-9"
+              disabled={uploading}
+              type="button"
               onClick={onClose}
             >
-              <HiX className="w-6 h-6" />
+              <HiX className="h-5 w-5 text-ink" />
             </button>
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Title Input */}
+            {/* Title */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
+              <label className="block text-sm font-semibold text-ink-muted">
                 Capsule Title
               </label>
               <input
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
                 maxLength={100}
                 placeholder="Name your time capsule..."
                 type="text"
@@ -511,12 +517,12 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
               />
             </div>
 
-            {/* Location Display */}
-            <div className="bg-gray-50 rounded-xl p-4 flex items-center space-x-3">
-              <HiLocationMarker className="w-5 h-5 text-blue-500" />
+            {/* Location */}
+            <div className="flex items-center space-x-3 rounded-xl border border-line bg-surface-raised p-4">
+              <HiLocationMarker className="h-5 w-5 text-accent" />
               <div>
-                <p className="text-sm font-medium text-gray-700">Location</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-sm font-medium text-ink">Location</p>
+                <p className="text-xs text-ink-faint">
                   {location
                     ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`
                     : "Location not available"}
@@ -524,121 +530,136 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
               </div>
             </div>
 
-            {/* Upload Section */}
+            {/* Upload dropzone */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
+              <label className="block text-sm font-semibold text-ink-muted">
                 Capsule Contents
               </label>
               <div
                 {...getRootProps()}
-                className={`border-2 border-dashed rounded-xl p-6 transition-all ${
+                className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 transition-all ${
                   isDragActive
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-300 hover:border-gray-400"
+                    ? "border-accent bg-accent/10"
+                    : "border-white/15 hover:border-white/30 hover:bg-white/5"
                 }`}
               >
                 <input {...getInputProps()} />
                 <div className="text-center">
-                  <HiPhotograph className="mx-auto h-12 w-12 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-600">
-                    Drop your memories here
+                  <HiPhotograph className="mx-auto h-12 w-12 text-ink-faint" />
+                  <p className="mt-2 text-sm text-ink-muted">
+                    Drop your memories here, or tap to browse
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Images (max 5MB) or Videos (max 50MB)
+                  <p className="mt-1 text-xs text-ink-faint">
+                    Images (max 5MB) or videos (max 50MB)
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Preview Grid */}
+            {/* Preview grid */}
             {previewUrls.length > 0 && (
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
-                  Preview Contents
+                <label className="block text-sm font-semibold text-ink-muted">
+                  Preview
                 </label>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    {previewUrls.map((url, index) => (
-                      <div key={index} className="relative group">
-                        <div className="relative w-full pb-[100%]">
-                          <div className="absolute inset-0">
-                            {isVideoFile(files[index]) ? (
-                              <div className="relative w-full h-full">
-                                <video
-                                  controls
-                                  className="absolute inset-0 w-full h-full object-cover rounded-lg"
-                                  onClick={() => openMediaPopup(url, "video")}
-                                  onError={(e) => handleVideoError(e, index)}
-                                >
-                                  <source
-                                    src={url}
-                                    type={getFileType(files[index])}
-                                  />
-                                  Your browser does not support the video tag.
-                                </video>
-                                <div
-                                  className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded-lg group-hover:bg-opacity-20 transition-all"
-                                  style={{ pointerEvents: "none" }}
-                                >
-                                  <HiPlay className="w-12 h-12 text-white opacity-80 group-hover:opacity-100 transition-opacity" />
-                                </div>
+                <div className="grid grid-cols-2 gap-3 rounded-2xl border border-line bg-surface-raised p-4">
+                  {previewUrls.map((url, index) => (
+                    <div key={index} className="group relative">
+                      <div className="relative w-full pb-[100%]">
+                        <div className="absolute inset-0">
+                          {isVideoFile(files[index]) ? (
+                            <div className="relative h-full w-full">
+                              <video
+                                className="absolute inset-0 h-full w-full rounded-lg object-cover"
+                                onClick={() => openMediaPopup(url, "video")}
+                                onError={(e) => handleVideoError(e, index)}
+                              >
+                                <source
+                                  src={url}
+                                  type={getFileType(files[index])}
+                                />
+                              </video>
+                              <div
+                                className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/30 transition-all group-hover:bg-black/20"
+                                style={{ pointerEvents: "none" }}
+                              >
+                                <HiPlay className="h-12 w-12 text-white opacity-80 transition-opacity group-hover:opacity-100" />
                               </div>
-                            ) : (
-                              <Image
-                                fill
-                                alt={`Preview ${index + 1}`}
-                                className="object-cover rounded-lg transform transition-transform group-hover:scale-102 cursor-pointer"
-                                src={url}
-                                onClick={() => openMediaPopup(url, "image")}
-                              />
-                            )}
-                          </div>
+                            </div>
+                          ) : (
+                            <Image
+                              fill
+                              alt={`Preview ${index + 1}`}
+                              className="cursor-pointer rounded-lg object-cover transition-transform group-hover:scale-[1.02]"
+                              src={url}
+                              onClick={() => openMediaPopup(url, "image")}
+                            />
+                          )}
                         </div>
-                        <button
-                          className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10"
-                          type="button"
-                          onClick={() => {
-                            setFiles((prev) =>
-                              prev.filter((_, i) => i !== index),
-                            );
-                            setPreviewUrls((prev) =>
-                              prev.filter((_, i) => i !== index),
-                            );
-                            setFileTypes((prev) =>
-                              prev.filter((_, i) => i !== index),
-                            );
-                            URL.revokeObjectURL(url);
-                          }}
-                        >
-                          <HiX className="w-4 h-4" />
-                        </button>
                       </div>
-                    ))}
-                  </div>
+                      <button
+                        className="absolute right-2 top-2 z-10 rounded-full bg-black/70 p-1.5 text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
+                        type="button"
+                        onClick={() => {
+                          setFiles((prev) =>
+                            prev.filter((_, i) => i !== index),
+                          );
+                          setPreviewUrls((prev) =>
+                            prev.filter((_, i) => i !== index),
+                          );
+                          setFileTypes((prev) =>
+                            prev.filter((_, i) => i !== index),
+                          );
+                          URL.revokeObjectURL(url);
+                        }}
+                      >
+                        <HiX className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* Voice Message Upload */}
+            {/* Voice message */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
-                Voice Message (optional)
+              <label className="flex items-center gap-2 text-sm font-semibold text-ink-muted">
+                <HiMicrophone className="h-4 w-4" />
+                Voice Message
+                <span className="font-normal text-ink-faint">(optional)</span>
               </label>
-              <input
-                accept="audio/*"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
-                type="file"
-                onChange={handleVoiceMessageUpload}
-              />
+              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-line bg-surface-raised px-4 py-3 text-sm transition-colors hover:bg-surface-hover">
+                <span className={voiceMessage ? "text-ink" : "text-ink-faint"}>
+                  {voiceMessage ? voiceMessage.name : "Add a voice note..."}
+                </span>
+                {voiceMessage && (
+                  <button
+                    className="text-ink-faint hover:text-red-400"
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setVoiceMessage(null);
+                    }}
+                  >
+                    <HiX className="h-4 w-4" />
+                  </button>
+                )}
+                <input
+                  accept="audio/*"
+                  className="hidden"
+                  type="file"
+                  onChange={handleVoiceMessageUpload}
+                />
+              </label>
             </div>
 
-            {/* Notes Section */}
+            {/* Notes */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
+              <label className="block text-sm font-semibold text-ink-muted">
                 Message for the Future
               </label>
               <textarea
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
                 maxLength={500}
                 placeholder="Write a message to your future self..."
                 rows={4}
@@ -647,10 +668,20 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
               />
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex justify-between gap-3 pt-4">
+            {/* Progress bar */}
+            {uploading && uploadProgress > 0 && (
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-accent transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex justify-between gap-3 pt-2">
               <button
-                className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors font-medium"
+                className="rounded-xl bg-white/10 px-6 py-3 font-medium text-ink-muted transition-colors hover:bg-white/15 disabled:opacity-50"
                 disabled={uploading}
                 type="button"
                 onClick={onClose}
@@ -658,11 +689,11 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
                 Cancel
               </button>
               <button
-                className={`px-6 py-3 rounded-xl text-white font-medium ${
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-black transition-colors ${
                   uploading
-                    ? "bg-blue-400 cursor-not-allowed"
-                    : "bg-blue-500 hover:bg-blue-600"
-                } transition-colors flex items-center gap-2`}
+                    ? "cursor-not-allowed bg-accent/60"
+                    : "bg-accent hover:bg-accent-soft"
+                }`}
                 disabled={uploading}
                 type="submit"
               >
@@ -670,8 +701,8 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
                   <>
                     <HiClock className="animate-spin" />
                     {uploadProgress > 0 && uploadProgress < 100
-                      ? `Sealing Capsule... ${uploadProgress}%`
-                      : "Sealing Capsule..."}
+                      ? `Sealing... ${uploadProgress}%`
+                      : "Sealing..."}
                   </>
                 ) : (
                   <>
@@ -685,7 +716,6 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
         </div>
       </div>
 
-      {/* Media Popup */}
       {isPopupOpen && selectedMedia && mediaType && (
         <MediaPopup
           mediaType={mediaType}

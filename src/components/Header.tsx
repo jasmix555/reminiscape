@@ -3,107 +3,180 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { motion } from "framer-motion"; // Import Framer Motion
-import { FaGear, FaUsers, FaHouse } from "react-icons/fa6";
+import { usePathname, useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import { signOut } from "firebase/auth";
+import {
+  FaGear,
+  FaUsers,
+  FaHouse,
+  FaUser,
+  FaArrowRightFromBracket,
+  FaXmark,
+} from "react-icons/fa6";
 
 import { useProfile } from "@/hooks";
+import { auth } from "@/libs/firebaseConfig";
+
+const NAV_ITEMS = [
+  { href: "/", label: "Home", icon: FaHouse },
+  { href: "/friends", label: "Friends", icon: FaUsers },
+  { href: "/setup-profile", label: "Settings", icon: FaGear },
+];
+
+// Small avatar that gracefully falls back to an icon when there is no photo
+// (or the photo fails to load) instead of showing broken alt text.
+const Avatar = ({ src, size }: { src?: string; size: number }) => {
+  const [errored, setErrored] = useState(false);
+  const showImage = src && src.trim() !== "" && !errored;
+
+  if (!showImage) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-surface-raised">
+        <FaUser className="text-ink-muted" style={{ fontSize: size * 0.45 }} />
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      alt="Profile"
+      className="h-full w-full object-cover"
+      height={size}
+      src={src}
+      width={size}
+      onError={() => setErrored(true)}
+    />
+  );
+};
 
 const Header = () => {
   const { profile, loading } = useProfile();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
 
   if (loading) return null;
 
-  const photoURL = profile?.photoURL || "/default-profile.png";
+  const photoURL = profile?.photoURL;
+  const displayName =
+    profile?.displayName || profile?.username || "Set up profile";
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push("/welcome");
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
+  };
 
   return (
     <>
-      {/* Header */}
-      <header className="fixed left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-2 text-white ">
-        <div className="absolute left-0 right-0 top-0" />
-        {/* Gear Icon for Settings (Left Side) */}
-        <div
-          className="absolute left-4 top-4 z-10 cursor-pointer flex items-center space-x-2"
-          onClick={() => setIsSidebarOpen(true)} // Open the sidebar
+      {/* Top bar — a single profile button opens the menu (settings live inside) */}
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <button
+          aria-label="Open menu"
+          className="ctrl-btn pointer-events-auto h-11 w-11 overflow-hidden p-0"
+          type="button"
+          onClick={() => setIsOpen(true)}
         >
-          <FaGear className="h-8 w-8 text-black" />
-        </div>
-        {/* Centered Logo Name */}
+          <Avatar size={44} src={photoURL} />
+        </button>
+
         <Link
-          className="absolute left-1/2 top-4 z-10 transform -translate-x-1/2 text-2xl font-bold text-black"
-          href={"/"}
+          className="glass pointer-events-auto rounded-full px-5 py-2 text-lg font-semibold tracking-tight text-ink shadow-glass"
+          href="/"
         >
           Reminiscape
         </Link>
+
+        {/* Spacer keeps the wordmark centered */}
+        <div className="h-11 w-11" />
       </header>
 
-      {/* Sidebar with Framer Motion */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black bg-opacity-50"
-          onClick={() => setIsSidebarOpen(false)} // Close the sidebar when clicking background
-        >
+      {/* Slide-in panel */}
+      <AnimatePresence>
+        {isOpen && (
           <motion.div
-            animate={{ x: 0 }} // Slide in to its position
-            className="absolute left-0 top-0 h-full w-64 bg-gray-100 shadow-lg rounded-r-lg px-4 "
-            exit={{ x: "-100%" }} // Slide out when closing
-            initial={{ x: "-100%" }} // Start off-screen to the left
-            transition={{
-              type: "spring",
-              stiffness: 150, // Increased stiffness for faster animation
-              damping: 20, // Reduced damping for quicker stop
-              velocity: 15, // Increased velocity for faster start
-            }} // Faster smooth spring animation
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            onClick={() => setIsOpen(false)}
           >
-            {/* Profile Picture and Username on Top of Sidebar */}
-            <div className="flex flex-col items-center mt-8">
-              <Image
-                alt="User Profile"
-                className="h-20 w-20 rounded-full object-cover"
-                height={80}
-                src={photoURL}
-                width={80}
-              />
-              <p className="mt-4 text-lg font-semibold text-gray-800">
-                {profile?.displayName || profile?.username || "Setup Profile"}
-              </p>
-            </div>
-
-            <button
-              className="absolute top-4 right-4 text-black"
-              onClick={() => setIsSidebarOpen(false)} // Close the sidebar
+            <motion.aside
+              animate={{ x: 0 }}
+              className="glass-strong absolute left-0 top-0 flex h-full w-[82%] max-w-[20rem] flex-col px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] shadow-glass-lg"
+              exit={{ x: "-100%" }}
+              initial={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 380, damping: 38 }}
+              onClick={(e) => e.stopPropagation()}
             >
-              ✕
-            </button>
-            <nav className="mt-16 grid gap-4">
-              <Link
-                className="text-lg font-medium text-gray-700 hover:text-blue-600 border rounded-full border-gray-300 px-4 py-2 flex items-center justify-center  w-full"
-                href="/"
-                onClick={() => setIsSidebarOpen(false)} // Close the sidebar on navigation
+              <button
+                aria-label="Close menu"
+                className="ctrl-btn absolute right-4 top-4 h-9 w-9"
+                type="button"
+                onClick={() => setIsOpen(false)}
               >
-                <FaHouse className="inline-block mr-2" />
-                <span className="w-20">Home</span>
-              </Link>
+                <FaXmark className="h-4 w-4 text-ink" />
+              </button>
+
+              {/* Profile */}
               <Link
-                className="text-lg font-medium text-gray-700 hover:text-blue-600 border rounded-full border-gray-300 px-4 py-2 flex items-center justify-center  w-full"
-                href="/friends"
-                onClick={() => setIsSidebarOpen(false)} // Close the sidebar on navigation
-              >
-                <FaUsers className="inline-block mr-2" />
-                <span className="w-20">Friends</span>
-              </Link>
-              <Link
-                className="text-lg font-medium text-gray-700 hover:text-blue-600 border rounded-full border-gray-300 px-4 py-2 flex items-center justify-center  w-full"
+                className="mt-6 flex flex-col items-center gap-3"
                 href="/setup-profile"
-                onClick={() => setIsSidebarOpen(false)} // Close the sidebar on navigation
+                onClick={() => setIsOpen(false)}
               >
-                <FaGear className="inline-block mr-2" />
-                <span className="w-20">Settings</span>
+                <div className="h-20 w-20 overflow-hidden rounded-full ring-2 ring-accent/60">
+                  <Avatar size={80} src={photoURL} />
+                </div>
+                <div className="text-center">
+                  <p className="text-base font-semibold text-ink">
+                    {displayName}
+                  </p>
+                  {profile?.email && (
+                    <p className="text-xs text-ink-faint">{profile.email}</p>
+                  )}
+                </div>
               </Link>
-            </nav>
+
+              {/* Nav */}
+              <nav className="mt-10 flex flex-col gap-2">
+                {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+                  const active = pathname === href;
+
+                  return (
+                    <Link
+                      key={href}
+                      className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                        active
+                          ? "bg-accent/15 text-accent"
+                          : "text-ink-muted hover:bg-white/5 hover:text-ink"
+                      }`}
+                      href={href}
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Icon className="h-[18px] w-[18px]" />
+                      {label}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              {/* Logout */}
+              <button
+                className="mt-auto flex items-center justify-center gap-2 rounded-xl border border-red-500/40 px-4 py-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/15"
+                type="button"
+                onClick={handleLogout}
+              >
+                <FaArrowRightFromBracket className="h-4 w-4" />
+                Log out
+              </button>
+            </motion.aside>
           </motion.div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </>
   );
 };

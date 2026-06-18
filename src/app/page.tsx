@@ -4,7 +4,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { Loading, Map, ErrorBoundary } from "@/components";
+import { Loading, Map, ErrorBoundary, Header } from "@/components";
 import { useAuth } from "@/hooks";
 
 export default function HomePage() {
@@ -37,6 +37,7 @@ export default function HomePage() {
   return (
     <main className="fixed inset-0 h-dvh w-screen overflow-hidden overscroll-none">
       <ErrorBoundary>
+        <Header />
         <Map />
       </ErrorBoundary>
     </main>
