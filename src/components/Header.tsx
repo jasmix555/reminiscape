@@ -1,6 +1,5 @@
 // src/components/Header.tsx
 "use client";
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -39,7 +38,11 @@ const Avatar = ({ src, size }: { src?: string; size: number }) => {
   }
 
   return (
-    <Image
+    // Plain <img> (not next/image) on purpose: this Header renders at the
+    // layout level outside any ErrorBoundary, and next/image throws for
+    // remote hosts that aren't whitelisted in next.config — which would blank
+    // the whole app. A plain img just falls back to the icon via onError.
+    <img
       alt="Profile"
       className="h-full w-full object-cover"
       height={size}

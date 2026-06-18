@@ -2,12 +2,14 @@
 "use client";
 import { useState, FormEvent, useEffect } from "react";
 import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import { FaArrowLeft, FaArrowRightFromBracket } from "react-icons/fa6";
 
 import { uploadProfileImage } from "@/libs/profileUtils";
 import { auth } from "@/libs/firebaseConfig";
 import { useProfile } from "@/hooks";
-import { ProfileImageUpload, Loading, LogoutButton } from "@/components";
+import { ProfileImageUpload, Loading } from "@/components";
 
 const db = getFirestore();
 
@@ -25,14 +27,12 @@ export default function SetupProfilePage() {
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const router = useRouter();
 
-  // Set initial values when profile is loaded
   useEffect(() => {
     if (profile) {
       setUsername(profile.username || "");
       setBio(profile.bio || "");
-      setProfileImageUrl(profile.photoURL || null); // Ensure the image URL is set
+      setProfileImageUrl(profile.photoURL || null);
     } else {
-      // Reset fields if no profile is found
       setUsername("");
       setBio("");
       setProfileImageUrl(null);
@@ -48,13 +48,22 @@ export default function SetupProfilePage() {
           file,
         );
 
-        setProfileImageUrl(downloadURL); // Set the uploaded image URL
+        setProfileImageUrl(downloadURL);
       }
     } catch (error) {
       setError("Failed to upload image");
       console.error(error);
     } finally {
       setImageLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push("/welcome");
+    } catch (error) {
+      console.error("Error logging out:", error);
     }
   };
 
@@ -67,13 +76,12 @@ export default function SetupProfilePage() {
       if (auth.currentUser) {
         const userDocRef = doc(db, "users", auth.currentUser.uid);
 
-        // Use merge: true to preserve existing data
         await setDoc(
           userDocRef,
           {
             username,
             bio,
-            photoURL: profileImageUrl, // Ensure the photoURL is set correctly
+            photoURL: profileImageUrl,
             email: auth.currentUser.email,
             updatedAt: new Date().toISOString(),
             ...(profile ? {} : { createdAt: new Date().toISOString() }),
@@ -81,7 +89,6 @@ export default function SetupProfilePage() {
           { merge: true },
         );
 
-        // Redirect to homepage after saving changes
         router.push("/");
       }
     } catch (error) {
@@ -97,80 +104,110 @@ export default function SetupProfilePage() {
   }
 
   if (profileError) {
-    return <div>Error loading profile: {profileError}</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-background text-ink-muted">
+        Error loading profile: {profileError}
+      </div>
+    );
   }
 
   return (
-    <div className="flex h-screen items-center justify-center flex-col">
-      <div className="container mx-auto max-w-md rounded-lg bg-white p-8 shadow-md">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 text-center">
-            {profile ? "Edit Your Profile" : "Set Up Your Profile"}
+    <div className="min-h-screen bg-background text-ink">
+      <div className="mx-auto flex w-full max-w-md flex-col px-4 pb-16 pt-[max(1rem,env(safe-area-inset-top))]">
+        {/* Header */}
+        <div className="mb-6 flex items-center gap-3">
+          <button
+            aria-label="Back"
+            className="ctrl-btn h-10 w-10"
+            type="button"
+            onClick={() => router.back()}
+          >
+            <FaArrowLeft className="h-4 w-4 text-ink" />
+          </button>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {profile ? "Edit Profile" : "Set Up Profile"}
           </h1>
-          <div className="w-10" /> {/* Placeholder for alignment */}
         </div>
-        {error && <p className="mb-4 text-center text-red-600">{error}</p>}
 
-        <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-          <ProfileImageUpload
-            currentImage={profileImageUrl || null} // Ensure currentImage is either string or null
-            loading={imageLoading}
-            onImageSelect={handleImageUpload}
-          />
+        <div className="glass-strong rounded-3xl p-6 shadow-glass">
+          {error && (
+            <p className="mb-4 rounded-xl bg-red-500/15 p-3 text-center text-sm text-red-400">
+              {error}
+            </p>
+          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Username
-            </label>
-            <input
-              required
-              className="mt-1 block w-full border-b-2 border-gray-300 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
-              placeholder="Enter your username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+          <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+            <ProfileImageUpload
+              currentImage={profileImageUrl || null}
+              loading={imageLoading}
+              onImageSelect={handleImageUpload}
             />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Bio
-            </label>
-            <textarea
-              required
-              className="mt-1 block w-full resize-none rounded-md border border-gray-300 p-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none" // Add 'resize-none' class
-              placeholder="Tell us about yourself"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-            />
-          </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-ink-muted">
+                Username
+              </label>
+              <input
+                required
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                placeholder="Enter your username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </div>
 
-          <div className="w-full flex justify-between gap-8">
-            <button
-              className="text-gray-600 hover:text-gray-800 flex py-2 bg-gray-200 rounded-full px-8 justify-center items-center"
-              onClick={() => router.back()}
-            >
-              Cancel
-            </button>
-            <button
-              className={`w-full rounded-full py-2 font-bold text-white transition ${
-                loading || imageLoading || !username
-                  ? "cursor-not-allowed bg-gray-400"
-                  : "bg-yellow-900 hover:bg-yellow-800"
-              }`}
-              disabled={loading || imageLoading || !username} // Disable if loading, image loading, or username is empty
-              type="submit"
-            >
-              {loading
-                ? "Saving..."
-                : profile
-                  ? "Save Changes"
-                  : "Complete Setup"}
-            </button>
-          </div>
-        </form>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-ink-muted">
+                Bio
+              </label>
+              <textarea
+                required
+                className="w-full resize-none rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                placeholder="Tell us about yourself"
+                rows={4}
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-between gap-3">
+              <button
+                className="rounded-xl bg-white/10 px-6 py-3 font-medium text-ink-muted transition-colors hover:bg-white/15"
+                type="button"
+                onClick={() => router.back()}
+              >
+                Cancel
+              </button>
+              <button
+                className={`flex flex-1 items-center justify-center rounded-xl py-3 font-semibold transition-colors ${
+                  loading || imageLoading || !username
+                    ? "cursor-not-allowed bg-accent/50 text-black/60"
+                    : "bg-accent text-black hover:bg-accent-soft"
+                }`}
+                disabled={loading || imageLoading || !username}
+                type="submit"
+              >
+                {loading
+                  ? "Saving..."
+                  : profile
+                    ? "Save Changes"
+                    : "Complete Setup"}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Logout */}
+        <button
+          className="mt-6 flex items-center justify-center gap-2 rounded-xl border border-red-500/40 px-4 py-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/15"
+          type="button"
+          onClick={handleLogout}
+        >
+          <FaArrowRightFromBracket className="h-4 w-4" />
+          Log out
+        </button>
       </div>
-      <LogoutButton />
     </div>
   );
 }

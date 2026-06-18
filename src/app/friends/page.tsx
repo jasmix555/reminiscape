@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import {
   FaSearch,
-  FaUserPlus,
   FaUsers,
   FaUserCheck,
   FaTimes,
   FaCheck,
   FaTrash,
+  FaArrowLeft,
+  FaUser,
+  FaUserPlus,
 } from "react-icons/fa";
 import {
   collection,
@@ -28,6 +31,36 @@ import { UserProfile } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { Loading } from "@/components";
 
+// Avatar with graceful icon fallback (no broken-image alt text).
+const UserAvatar = ({ src, size = 48 }: { src?: string; size?: number }) => {
+  const [errored, setErrored] = useState(false);
+  const show = src && src.trim() !== "" && !errored;
+
+  return (
+    <div
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-raised ring-1 ring-line"
+      style={{ width: size, height: size }}
+    >
+      {show ? (
+        <img
+          alt="User"
+          className="h-full w-full object-cover"
+          src={src}
+          onError={() => setErrored(true)}
+        />
+      ) : (
+        <FaUser className="text-ink-faint" style={{ fontSize: size * 0.4 }} />
+      )}
+    </div>
+  );
+};
+
+const TABS = [
+  { id: "friends", label: "Friends", icon: FaUsers },
+  { id: "search", label: "Search", icon: FaSearch },
+  { id: "requests", label: "Requests", icon: FaUserCheck },
+] as const;
+
 const FriendsPage = () => {
   const { user, profile, loading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,7 +76,6 @@ const FriendsPage = () => {
     setSearchQuery(e.target.value);
   };
 
-  // Search Users
   const searchUsers = async () => {
     const trimmedQuery = searchQuery.trim();
 
@@ -54,7 +86,7 @@ const FriendsPage = () => {
       const q = query(
         usersRef,
         where("username", ">=", trimmedQuery),
-        where("username", "<=", trimmedQuery + "\uf8ff"),
+        where("username", "<=", trimmedQuery + ""),
       );
 
       const querySnapshot = await getDocs(q);
@@ -65,14 +97,12 @@ const FriendsPage = () => {
           const userData = doc.data();
           const username = userData.username;
 
-          // Check if the username matches the exact query
           if (username === trimmedQuery) {
             users.push({ ...userData, uid: doc.id } as UserProfile);
           }
         }
       });
 
-      // Filter out the current user from the search results
       setSearchResults(
         users.filter((foundUser) => foundUser.uid !== profile?.uid),
       );
@@ -82,7 +112,6 @@ const FriendsPage = () => {
     }
   };
 
-  // Send Friend Request
   const handleSendFriendRequest = async (receiverId: string) => {
     if (!receiverId || receiverId === profile?.uid) {
       toast.error("You cannot send a friend request to yourself.");
@@ -100,8 +129,6 @@ const FriendsPage = () => {
 
     try {
       const receiverRef = doc(db, "users", receiverId);
-
-      // Check if the friendRequests array already contains the current user's UID
       const receiverDoc = await getDoc(receiverRef);
 
       if (receiverDoc.exists()) {
@@ -113,18 +140,16 @@ const FriendsPage = () => {
         ) {
           toast.error("Friend request already sent!");
 
-          return; // Exit if the request has already been sent
+          return;
         }
       }
 
-      // Add the current user's UID to the receiver's friendRequests array
       await updateDoc(receiverRef, {
         friendRequests: arrayUnion(user?.uid || ""),
       });
 
       toast.success("Friend request sent!");
 
-      // Update the UI for search results (mark as request sent)
       setSearchResults((prevResults) =>
         prevResults.map((result) =>
           result.uid === receiverId ? { ...result, requestSent: true } : result,
@@ -138,7 +163,6 @@ const FriendsPage = () => {
     }
   };
 
-  // Fetch Friends
   const fetchFriendsDetails = async () => {
     if (!profile?.friends || profile.friends.length === 0) {
       setFriends([]);
@@ -166,7 +190,6 @@ const FriendsPage = () => {
     }
   };
 
-  // Fetch Friend Requests
   const fetchFriendRequests = async () => {
     if (!profile?.friendRequests || profile.friendRequests.length === 0) {
       setFriendRequests([]);
@@ -194,13 +217,11 @@ const FriendsPage = () => {
     }
   };
 
-  // Accept Friend Request
   const handleAcceptRequest = async (senderId: string) => {
     try {
       const userRef = doc(db, "users", user?.uid || "");
       const senderRef = doc(db, "users", senderId);
 
-      // Add each user to the other's friends list
       await updateDoc(userRef, {
         friends: arrayUnion(senderId),
         friendRequests: arrayRemove(senderId),
@@ -219,7 +240,6 @@ const FriendsPage = () => {
     }
   };
 
-  // Decline Friend Request
   const handleDeclineRequest = async (senderId: string) => {
     try {
       const userRef = doc(db, "users", user?.uid || "");
@@ -236,13 +256,11 @@ const FriendsPage = () => {
     }
   };
 
-  // Remove Friend
   const handleRemoveFriend = async (friendId: string) => {
     try {
       const userRef = doc(db, "users", user?.uid || "");
       const friendRef = doc(db, "users", friendId);
 
-      // Remove the friend from both users' friends lists
       await updateDoc(userRef, {
         friends: arrayRemove(friendId),
       });
@@ -273,198 +291,186 @@ const FriendsPage = () => {
 
   if (loading || !profile) return <Loading />;
 
+  const isSelf = (uid: string) => uid === profile?.uid;
+
   return (
-    <div className="p-4">
-      {/* Tabs */}
-      <div className="flex space-x-4 mb-6 mt-16">
-        <button
-          className={`p-2 rounded-md ${
-            activeTab === "friends"
-              ? "bg-blue-500 text-white"
-              : "bg-gray-200 text-gray-600"
-          }`}
-          onClick={() => setActiveTab("friends")}
-        >
-          <FaUsers className="inline-block mr-2" />
-          Friends
-        </button>
-        <button
-          className={`p-2 rounded-md ${
-            activeTab === "search"
-              ? "bg-blue-500 text-white"
-              : "bg-gray-200 text-gray-600"
-          }`}
-          onClick={() => setActiveTab("search")}
-        >
-          <FaSearch className="inline-block mr-2" />
-          Search
-        </button>
-        <button
-          className={`p-2 rounded-md ${
-            activeTab === "requests"
-              ? "bg-blue-500 text-white"
-              : "bg-gray-200 text-gray-600"
-          }`}
-          onClick={() => setActiveTab("requests")}
-        >
-          <FaUserCheck className="inline-block mr-2" />
-          Requests
-        </button>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === "friends" && (
-        <div>
-          {friends.length === 0 ? (
-            <p>No friends added yet.</p>
-          ) : (
-            friends.map((friend) => (
-              <div
-                key={friend.uid}
-                className="flex items-center justify-between p-4 border rounded-lg border-gray-300 bg-gray-100 bg-opacity-50 mb-2"
-              >
-                <div className="flex items-center">
-                  <img
-                    alt={friend.username || "User"}
-                    className="w-12 h-12 rounded-full object-cover mr-4"
-                    src={friend.photoURL || "/default-profile.png"}
-                  />
-                  <p>{friend.username}</p>
-                </div>
-                <button
-                  className="p-2 bg-red-500 text-white rounded-md"
-                  onClick={() => handleRemoveFriend(friend.uid)}
-                >
-                  <FaTrash />
-                </button>
-              </div>
-            ))
-          )}
+    <div className="min-h-screen bg-background text-ink">
+      <div className="mx-auto w-full max-w-md px-4 pb-16 pt-[max(1rem,env(safe-area-inset-top))]">
+        {/* Header */}
+        <div className="mb-6 flex items-center gap-3">
+          <Link aria-label="Back" className="ctrl-btn h-10 w-10" href="/">
+            <FaArrowLeft className="h-4 w-4 text-ink" />
+          </Link>
+          <h1 className="text-2xl font-bold tracking-tight">Friends</h1>
         </div>
-      )}
 
-      {activeTab === "requests" && (
-        <div>
-          {friendRequests.length === 0 ? (
-            <p>No incoming friend requests.</p>
-          ) : (
-            friendRequests.map((request) => (
-              <div
-                key={request.uid}
-                className="flex items-center justify-between p-4 border rounded-lg border-gray-300 bg-gray-100 bg-opacity-50"
-              >
-                <div className="flex items-center">
-                  <img
-                    alt={request.username || "User"}
-                    className="w-12 h-12 rounded-full object-cover mr-4"
-                    src={request.photoURL || "/default-profile.png"}
-                  />
-                  <p>{request.username}</p>
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    className="p-2 bg-blue-500 text-white rounded-md"
-                    onClick={() => handleAcceptRequest(request.uid)}
-                  >
-                    <FaCheck />
-                  </button>
-                  <button
-                    className="p-2 bg-red-500 text-white rounded-md"
-                    onClick={() => handleDeclineRequest(request.uid)}
-                  >
-                    <FaTimes />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {activeTab === "search" && (
-        <div>
-          <div className="flex items-center space-x-2 mb-6">
-            <input
-              className="px-4 py-2 w-full rounded-md border border-gray-300"
-              placeholder="Search by username"
-              type="text"
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
+        {/* Segmented tabs */}
+        <div className="glass mb-6 flex gap-1 rounded-full p-1">
+          {TABS.map(({ id, label, icon: Icon }) => (
             <button
-              className="p-3 bg-blue-500 text-white rounded-md"
-              onClick={searchUsers}
+              key={id}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition-colors ${
+                activeTab === id
+                  ? "bg-accent text-black"
+                  : "text-ink-muted hover:text-ink"
+              }`}
+              onClick={() => setActiveTab(id)}
             >
-              <FaSearch />
+              <Icon className="h-4 w-4" />
+              {label}
             </button>
-          </div>
-
-          {searchResults.length === 0 ? (
-            <p>No users found.</p>
-          ) : (
-            searchResults.map((result) => (
-              <div
-                key={result.uid}
-                className="flex items-center justify-between p-4 border rounded-lg border-gray-300 bg-gray-100 bg-opacity-50"
-              >
-                <div className="flex items-center">
-                  <img
-                    alt={result.username || "User"}
-                    className="w-12 h-12 rounded-full object-cover mr-4"
-                    src={result.photoURL || "/default-profile.png"}
-                  />
-                  <p>{result.username}</p>
-                </div>
-                <button
-                  className={`p-2 bg-blue-500 text-white rounded-md ${
-                    result.uid === profile?.uid ||
-                    addingFriend === result.uid ||
-                    result.requestSent ||
-                    profile?.friends?.includes(result.uid)
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
-                  disabled={
-                    result.uid === profile?.uid || // Disable if the searched user is the current user
-                    addingFriend === result.uid ||
-                    profile?.friendRequests?.includes(result.uid) ||
-                    result.requestSent ||
-                    profile?.friends?.includes(result.uid) // Disable if already friends
-                  }
-                  onClick={() => {
-                    if (result.uid === profile?.uid) {
-                      toast.error(
-                        "You cannot send a friend request to yourself.",
-                      );
-
-                      return; // Prevent sending request to oneself
-                    }
-                    handleSendFriendRequest(result.uid); // Proceed with sending friend request
-                  }}
-                >
-                  {result.uid === profile?.uid
-                    ? "You Cannot Add Yourself"
-                    : profile?.friends?.includes(result.uid)
-                      ? "Already Added"
-                      : addingFriend === result.uid || result.requestSent
-                        ? "Request Sent"
-                        : "Add Friend"}
-
-                  {result.uid === profile?.uid && (
-                    <FaUserPlus className="inline-block ml-2" />
-                  )}
-                  {profile?.friends?.includes(result.uid) && (
-                    <FaCheck className="inline-block ml-2" />
-                  )}
-                  {addingFriend === result.uid && (
-                    <FaUserCheck className="inline-block ml-2" />
-                  )}
-                </button>
-              </div>
-            ))
-          )}
+          ))}
         </div>
-      )}
+
+        {/* Friends */}
+        {activeTab === "friends" && (
+          <div className="space-y-2">
+            {friends.length === 0 ? (
+              <p className="py-10 text-center text-sm text-ink-faint">
+                No friends added yet.
+              </p>
+            ) : (
+              friends.map((friend) => (
+                <div
+                  key={friend.uid}
+                  className="glass flex items-center justify-between rounded-2xl p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <UserAvatar src={friend.photoURL} />
+                    <p className="font-medium">{friend.username}</p>
+                  </div>
+                  <button
+                    aria-label="Remove friend"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-red-500/40 text-red-400 transition-colors hover:bg-red-500/15"
+                    onClick={() => handleRemoveFriend(friend.uid)}
+                  >
+                    <FaTrash className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Requests */}
+        {activeTab === "requests" && (
+          <div className="space-y-2">
+            {friendRequests.length === 0 ? (
+              <p className="py-10 text-center text-sm text-ink-faint">
+                No incoming friend requests.
+              </p>
+            ) : (
+              friendRequests.map((request) => (
+                <div
+                  key={request.uid}
+                  className="glass flex items-center justify-between rounded-2xl p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <UserAvatar src={request.photoURL} />
+                    <p className="font-medium">{request.username}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      aria-label="Accept"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-black transition-colors hover:bg-accent-soft"
+                      onClick={() => handleAcceptRequest(request.uid)}
+                    >
+                      <FaCheck className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      aria-label="Decline"
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-red-500/40 text-red-400 transition-colors hover:bg-red-500/15"
+                      onClick={() => handleDeclineRequest(request.uid)}
+                    >
+                      <FaTimes className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Search */}
+        {activeTab === "search" && (
+          <div className="space-y-4">
+            <div className="relative">
+              <FaSearch className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
+              <input
+                className="w-full rounded-full border border-line bg-surface-raised py-3 pl-11 pr-4 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                placeholder="Search by username"
+                type="text"
+                value={searchQuery}
+                onChange={handleSearchChange}
+              />
+            </div>
+
+            {searchResults.length === 0 ? (
+              <p className="py-10 text-center text-sm text-ink-faint">
+                {searchQuery.trim()
+                  ? "No users found."
+                  : "Search for friends by username."}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {searchResults.map((result) => {
+                  const alreadyFriend = profile?.friends?.includes(result.uid);
+                  const requestPending =
+                    addingFriend === result.uid ||
+                    result.requestSent ||
+                    profile?.friendRequests?.includes(result.uid);
+                  const disabled =
+                    isSelf(result.uid) || alreadyFriend || requestPending;
+
+                  return (
+                    <div
+                      key={result.uid}
+                      className="glass flex items-center justify-between rounded-2xl p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <UserAvatar src={result.photoURL} />
+                        <p className="font-medium">{result.username}</p>
+                      </div>
+                      <button
+                        className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                          disabled
+                            ? "cursor-not-allowed bg-white/10 text-ink-faint"
+                            : "bg-accent text-black hover:bg-accent-soft"
+                        }`}
+                        disabled={disabled}
+                        onClick={() => {
+                          if (isSelf(result.uid)) {
+                            toast.error(
+                              "You cannot send a friend request to yourself.",
+                            );
+
+                            return;
+                          }
+                          handleSendFriendRequest(result.uid);
+                        }}
+                      >
+                        {alreadyFriend ? (
+                          <>
+                            <FaCheck className="h-3.5 w-3.5" /> Added
+                          </>
+                        ) : requestPending ? (
+                          <>
+                            <FaUserCheck className="h-3.5 w-3.5" /> Sent
+                          </>
+                        ) : (
+                          <>
+                            <FaUserPlus className="h-3.5 w-3.5" /> Add
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

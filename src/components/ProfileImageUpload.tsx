@@ -1,8 +1,9 @@
-// src/components/ImageUpload.tsx
+// src/components/ProfileImageUpload.tsx
 
 import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { useDropzone } from "react-dropzone";
+import { FaUser } from "react-icons/fa6";
 
 interface ImageUploadProps {
   currentImage?: string | null;
@@ -44,39 +45,45 @@ export const ProfileImageUpload = ({
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div
         {...getRootProps()}
-        className={`relative mx-auto h-32 w-32 cursor-pointer rounded-full border-2 border-dashed ${isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"}`}
+        className={`relative mx-auto h-32 w-32 cursor-pointer overflow-hidden rounded-full border-2 border-dashed transition-colors ${
+          isDragActive
+            ? "border-accent bg-accent/10"
+            : "border-white/20 hover:border-white/40"
+        }`}
       >
         <input {...getInputProps()} />
         {previewUrl ? (
-          <div className="relative h-full w-full overflow-hidden rounded-full">
+          <div className="relative h-full w-full">
             <Image
               fill
               alt="Profile preview"
               className="object-cover"
               src={previewUrl}
             />
-            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 transition-opacity hover:opacity-100">
-              <span className="text-sm text-white">Change Photo</span>
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity hover:opacity-100">
+              <span className="text-sm font-medium text-white">
+                Change Photo
+              </span>
             </div>
           </div>
         ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <span className="text-4xl text-gray-400">👤</span>
+          <div className="flex h-full w-full items-center justify-center bg-surface-raised">
+            <FaUser className="text-4xl text-ink-faint" />
           </div>
         )}
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black bg-opacity-50">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           </div>
         )}
       </div>
-      <p className="text-center text-sm text-gray-500">
+      <p className="text-center text-sm text-ink-faint">
         {isDragActive
           ? "Drop the image here"
-          : "Click or drag to upload profile picture"}
+          : "Click or drag to upload a profile picture"}
       </p>
     </div>
   );

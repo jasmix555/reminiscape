@@ -312,46 +312,42 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
 
     setUploadProgress(0);
 
-    const tasks = prepared.map(
-      ({ kind, file, original }, index) =>
-        new Promise<{ kind: UploadKind; url: string }>((resolve, reject) => {
-          const folder =
-            kind === "voice" ? "voice" : kind === "video" ? "videos" : "images";
-          const storageRef = ref(
-            storage,
-            `memories/${folder}/${uuidv4()}-${file.name}`,
-          );
-          const metadata = {
-            contentType: getFileType(file),
-            customMetadata: {
-              originalName: original.name,
-              fileSize: file.size.toString(),
-            },
-          };
+    const tasks = prepared.map(({ kind, file, original }, index) => {
+      const folder =
+        kind === "voice" ? "voice" : kind === "video" ? "videos" : "images";
+      const storageRef = ref(
+        storage,
+        `memories/${folder}/${uuidv4()}-${file.name}`,
+      );
+      const metadata = {
+        contentType: getFileType(file),
+        customMetadata: {
+          originalName: original.name,
+          fileSize: file.size.toString(),
+        },
+      };
 
-          const task = uploadBytesResumable(storageRef, file, metadata);
+      const task = uploadBytesResumable(storageRef, file, metadata);
 
-          task.on(
-            "state_changed",
-            (snapshot) => {
-              transferred[index] = snapshot.bytesTransferred;
-              const sum = transferred.reduce((a, b) => a + b, 0);
+      task.on("state_changed", (snapshot) => {
+        transferred[index] = snapshot.bytesTransferred;
+        const sum = transferred.reduce((a, b) => a + b, 0);
 
-              setUploadProgress(Math.round((sum / totalBytes) * 100));
-            },
-            (error) => {
-              console.error("Upload failed:", original.name, error);
-              reject(error);
-            },
-            async () => {
-              uploadedRefs.push(storageRef);
-              const url = await getDownloadURL(task.snapshot.ref);
+        setUploadProgress(Math.round((sum / totalBytes) * 100));
+      });
 
-              resolve({ kind, url });
-            },
-          );
-        }),
-    );
+      // `task` itself is a thenable that settles exactly once — resolves when
+      // the upload completes, rejects on error. Chaining getDownloadURL here
+      // means the promise can never strand (which previously left the UI
+      // stuck on "Sealing..." forever if getDownloadURL threw).
+      return task.then(async () => {
+        const url = await getDownloadURL(storageRef);
+
+        uploadedRefs.push(storageRef);
+
+        return { kind, url };
+      });
+    });
 
     const results = await Promise.allSettled(tasks);
     const failures = results.filter(
