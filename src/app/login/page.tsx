@@ -21,13 +21,11 @@ export default function Login() {
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
   const router = useRouter();
 
-  // Redirect after render (never call router.push during render).
   useEffect(() => {
     if (!loading && user) router.push("/");
   }, [loading, user, router]);
 
-  if (loading) return <Loading />;
-  if (user) return null;
+  if (loading || user) return <Loading />;
 
   const togglePasswordVisibility = () => setIsPasswordVisible((prev) => !prev);
 
@@ -43,8 +41,6 @@ export default function Login() {
 
     if (error) {
       console.error(error);
-      // Supabase returns a generic "Invalid login credentials" for both wrong
-      // email and wrong password — surface it clearly under the fields.
       setError(
         error.message?.toLowerCase().includes("invalid")
           ? "Incorrect email or password. Please try again."
@@ -74,11 +70,8 @@ export default function Login() {
   };
 
   const busy = isSubmitting || isGoogleLoading;
-  // Highlight both fields when there's an auth error (it could be either one).
-  const inputClass = `w-full rounded-xl border bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:ring-2 focus:ring-accent ${
-    error
-      ? "border-red-500/60 focus:border-transparent"
-      : "border-line focus:border-transparent"
+  const inputClass = `w-full rounded-xl border bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent ${
+    error ? "border-red-500/60" : "border-line"
   }`;
 
   return (
@@ -138,7 +131,6 @@ export default function Login() {
               </button>
             </div>
 
-            {/* Inline error directly under the fields */}
             {error && (
               <p
                 aria-live="assertive"

@@ -52,7 +52,6 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
   const isCurrentUserMemory = memory.createdBy.uid === user?.uid;
   const isMemoryUnlocked = memory.isUnlocked || isCurrentUserMemory;
 
-  // Prefill the edit form with the current values (fixes blank fields on edit).
   const startEdit = () => {
     setUpdatedTitle(memory.title);
     setUpdatedNotes(memory.notes ?? "");
@@ -82,11 +81,12 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
   const handleDeleteMemory = async () => {
     if (!user) return;
 
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this memory? This action cannot be undone.",
-    );
-
-    if (!confirmDelete) return;
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this memory? This action cannot be undone.",
+      )
+    )
+      return;
 
     setDeleting(true);
     try {
@@ -128,7 +128,7 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
                 Title
               </span>
               <input
-                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent disabled:opacity-60"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent disabled:opacity-60"
                 disabled={saving}
                 type="text"
                 value={updatedTitle}
@@ -140,7 +140,7 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
                 Notes
               </span>
               <textarea
-                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent disabled:opacity-60"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent disabled:opacity-60"
                 disabled={saving}
                 rows={3}
                 value={updatedNotes}
@@ -180,22 +180,20 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
             )}
 
             {!isMemoryUnlocked ? (
-              <>
-                {!isNearMarker ? (
-                  <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/15 p-3 text-center text-red-400">
-                    <FaLock />
-                    <p>Move closer to unlock this memory.</p>
-                  </div>
-                ) : (
-                  <button
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent p-3 text-center font-semibold text-black transition-colors hover:bg-accent-soft"
-                    onClick={onUnlock}
-                  >
-                    <HiLockOpen className="inline w-5 h-5" />
-                    <span>Unlock Memory</span>
-                  </button>
-                )}
-              </>
+              !isNearMarker ? (
+                <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/15 p-3 text-center text-red-400">
+                  <FaLock />
+                  <p>Move closer to unlock this memory.</p>
+                </div>
+              ) : (
+                <button
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent p-3 text-center font-semibold text-black transition-colors hover:bg-accent-soft"
+                  onClick={onUnlock}
+                >
+                  <HiLockOpen className="inline w-5 h-5" />
+                  <span>Unlock Memory</span>
+                </button>
+              )
             ) : (
               <>
                 {memory.imageUrls.map((url, index) => (

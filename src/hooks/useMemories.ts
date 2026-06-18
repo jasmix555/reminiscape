@@ -7,7 +7,6 @@ import { supabase } from "@/libs/supabaseClient";
 import { deleteMediaByUrl } from "@/libs/supabaseStorage";
 import { Memory, UserProfile } from "@/types";
 
-// Map a Supabase `memories` row to the app's Memory shape.
 const mapRow = (row: Record<string, any>, selfUid: string): Memory => ({
   id: row.id,
   title: row.title,
@@ -45,7 +44,6 @@ export const useMemories = () => {
     }
 
     try {
-      // RLS already limits rows to the user's own + their friends' memories.
       const { data, error } = await supabase
         .from("memories")
         .select("*")
@@ -69,9 +67,7 @@ export const useMemories = () => {
   const addMemory = async (
     memoryData: Omit<Memory, "id" | "createdBy" | "createdAt" | "updatedAt">,
   ) => {
-    if (!user) {
-      throw new Error("User must be authenticated to create memories");
-    }
+    if (!user) throw new Error("User must be authenticated to create memories");
 
     const insert = {
       user_id: user.uid,
@@ -181,9 +177,8 @@ export const useMemories = () => {
   }, [user, loadMemories]);
 
   useEffect(() => {
-    if (user) {
-      loadMemories();
-    } else {
+    if (user) loadMemories();
+    else {
       setMemories([]);
       setLoading(false);
     }

@@ -41,7 +41,6 @@ export const isVideoFile = (file: File): boolean => {
   );
 };
 
-// Turn a Supabase storage error into language a user can act on.
 export const friendlyStorageError = (err: unknown): string => {
   const m = (
     err instanceof Error ? err.message : String(err ?? "")
@@ -67,8 +66,6 @@ export const friendlyStorageError = (err: unknown): string => {
   return "Something went wrong while uploading. Please try again.";
 };
 
-// Downscale + re-encode large photos before upload so "sealing a capsule"
-// doesn't hang on mobile. Returns the original if compression won't help.
 const compressImage = (file: File): Promise<File> =>
   new Promise((resolve) => {
     if (!file.type.startsWith("image/") || file.type === "image/gif") {
@@ -133,11 +130,6 @@ const compressImage = (file: File): Promise<File> =>
     img.src = url;
   });
 
-/**
- * Upload images/videos/voice in one pass, reporting aggregated progress.
- * If any asset fails, the ones that already uploaded are removed so Storage
- * never keeps orphans.
- */
 export const uploadMemoryAssets = async (
   files: File[],
   voiceMessage: File | null,
