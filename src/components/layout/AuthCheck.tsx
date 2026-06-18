@@ -17,7 +17,12 @@ export default function AuthCheck() {
   // Pages that render their own top bar (back button + title) must NOT also
   // get the global Header, or the two stack and the profile button covers the
   // page's back button (notably on iOS).
-  const ownHeaderPaths = ["/capture", "/friends", "/setup-profile"];
+  const ownHeaderPaths = [
+    "/capture",
+    "/friends",
+    "/setup-profile",
+    "/settings",
+  ];
   const hideGlobalHeader = ownHeaderPaths.includes(pathname);
 
   // Hide the app header for unverified users (e.g. the "verify your email"

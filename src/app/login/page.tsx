@@ -86,7 +86,6 @@ export default function Login() {
           <div className="flex flex-col gap-4">
             <input
               required
-              aria-invalid={Boolean(error)}
               aria-label="Email Address"
               autoComplete="email"
               className={inputClass}
@@ -102,8 +101,6 @@ export default function Login() {
             <div className="relative">
               <input
                 required
-                aria-invalid={Boolean(error)}
-                aria-label="Password"
                 autoComplete="current-password"
                 className={`${inputClass} pr-11`}
                 disabled={busy}

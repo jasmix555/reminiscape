@@ -8,14 +8,18 @@ import { Loading, Map, ErrorBoundary } from "@/components";
 import { useAuth } from "@/hooks";
 
 export default function HomePage() {
-  const { user, loading } = useAuth(); // Remove duplicate loading declaration
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+    if (!user) {
       router.push("/welcome");
+    } else if (!profile?.username) {
+      // New accounts must finish their profile before using the map.
+      router.push("/setup-profile");
     }
-  }, [loading, user, router]);
+  }, [loading, user, profile, router]);
 
   // Lock page scrolling while the full-screen map is mounted. On iOS Safari
   // the body is taller than the visible area (100vh excludes the toolbar), so

@@ -14,8 +14,8 @@ export interface UploadedMedia {
 }
 
 export const getFileType = (file: File): string => {
-  const extension = file.name.split(".").pop()?.toLowerCase();
-  const mimeTypes: Record<string, string> = {
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  const map: Record<string, string> = {
     mp4: "video/mp4",
     mov: "video/quicktime",
     avi: "video/x-msvideo",
@@ -26,18 +26,17 @@ export const getFileType = (file: File): string => {
     webp: "image/webp",
   };
 
-  if (extension === "mov") return "video/quicktime";
-  if (extension === "mp4") return "video/mp4";
+  if (ext === "mov") return "video/quicktime";
+  if (ext === "mp4") return "video/mp4";
 
-  return mimeTypes[extension || ""] || file.type || "application/octet-stream";
+  return map[ext || ""] || file.type || "application/octet-stream";
 };
 
 export const isVideoFile = (file: File): boolean => {
-  const extension = file.name.split(".").pop()?.toLowerCase();
+  const ext = file.name.split(".").pop()?.toLowerCase();
 
   return (
-    ["mov", "mp4", "avi"].includes(extension || "") ||
-    file.type.startsWith("video/")
+    ["mov", "mp4", "avi"].includes(ext || "") || file.type.startsWith("video/")
   );
 };
 
@@ -137,11 +136,11 @@ export const uploadMemoryAssets = async (
 ): Promise<UploadedMedia> => {
   const prepared: { kind: UploadKind; file: File }[] = await Promise.all(
     files.map(async (original) => {
-      const isVideo = isVideoFile(original);
+      const video = isVideoFile(original);
 
       return {
-        kind: (isVideo ? "video" : "image") as UploadKind,
-        file: isVideo ? original : await compressImage(original),
+        kind: (video ? "video" : "image") as UploadKind,
+        file: video ? original : await compressImage(original),
       };
     }),
   );

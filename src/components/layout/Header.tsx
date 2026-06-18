@@ -8,6 +8,7 @@ import {
   FaGear,
   FaUsers,
   FaHouse,
+  FaUser,
   FaArrowRightFromBracket,
   FaXmark,
 } from "react-icons/fa6";
@@ -20,7 +21,8 @@ import { supabase } from "@/libs/supabaseClient";
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: FaHouse },
   { href: "/friends", label: "Friends", icon: FaUsers },
-  { href: "/setup-profile", label: "Settings", icon: FaGear },
+  { href: "/setup-profile", label: "Profile", icon: FaUser },
+  { href: "/settings", label: "Settings", icon: FaGear },
 ];
 
 const Header = () => {
