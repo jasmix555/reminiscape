@@ -4,18 +4,18 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { signOut } from "firebase/auth";
 import {
   FaGear,
   FaUsers,
   FaHouse,
-  FaUser,
   FaArrowRightFromBracket,
   FaXmark,
 } from "react-icons/fa6";
 
-import { useProfile } from "@/hooks";
-import { auth } from "@/libs/firebaseConfig";
+import Avatar from "../ui/Avatar";
+
+import { useAuth } from "@/hooks";
+import { supabase } from "@/libs/supabaseClient";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: FaHouse },
@@ -23,38 +23,8 @@ const NAV_ITEMS = [
   { href: "/setup-profile", label: "Settings", icon: FaGear },
 ];
 
-// Small avatar that gracefully falls back to an icon when there is no photo
-// (or the photo fails to load) instead of showing broken alt text.
-const Avatar = ({ src, size }: { src?: string; size: number }) => {
-  const [errored, setErrored] = useState(false);
-  const showImage = src && src.trim() !== "" && !errored;
-
-  if (!showImage) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-surface-raised">
-        <FaUser className="text-ink-muted" style={{ fontSize: size * 0.45 }} />
-      </div>
-    );
-  }
-
-  return (
-    // Plain <img> (not next/image) on purpose: this Header renders at the
-    // layout level outside any ErrorBoundary, and next/image throws for
-    // remote hosts that aren't whitelisted in next.config — which would blank
-    // the whole app. A plain img just falls back to the icon via onError.
-    <img
-      alt="Profile"
-      className="h-full w-full object-cover"
-      height={size}
-      src={src}
-      width={size}
-      onError={() => setErrored(true)}
-    />
-  );
-};
-
 const Header = () => {
-  const { profile, loading } = useProfile();
+  const { profile, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
@@ -67,7 +37,7 @@ const Header = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await supabase.auth.signOut();
       router.push("/welcome");
     } catch (error) {
       console.error("Error logging out:", error);

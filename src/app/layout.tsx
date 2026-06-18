@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { ReactNode } from "react";
 
 import "./globals.css";
-import AuthCheck from "@/components/AuthCheck";
+import AuthCheck from "@/components/layout/AuthCheck";
 
 export const metadata: Metadata = {
   title: "Reminiscape",

@@ -8,12 +8,22 @@ export interface UserProfile {
   uid: string;
   email: string;
   username?: string;
+  displayName?: string;
+  bio?: string;
   photoURL?: string;
   createdAt: Date;
   updatedAt: Date;
   friends?: string[]; // Array of UIDs of the friends
   friendRequests?: string[]; // Array of UIDs of the users who sent a friend request
   requestSent?: boolean;
+}
+
+// App-normalized auth user (decoupled from any auth provider's user shape so
+// the rest of the app can keep using `user.uid`).
+export interface AppUser {
+  uid: string;
+  email: string | null;
+  emailVerified: boolean;
 }
 
 export interface Memory {
@@ -33,12 +43,6 @@ export interface Memory {
   updatedAt: Date;
   isUnlocked: boolean;
   isNearMarker?: boolean;
-}
-
-export interface Marker {
-  id: string;
-  location: Location;
-  memoryId: string;
 }
 
 export interface MemoryFeature {

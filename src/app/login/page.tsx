@@ -1,20 +1,13 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import {
-  signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
-  Auth,
-} from "firebase/auth";
-import { FirebaseError } from "firebase/app";
 import { useRouter } from "next/navigation";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import Link from "next/link";
 import Image from "next/image";
 
 import { useAuth } from "@/hooks";
-import { auth } from "@/libs/firebaseConfig";
+import { supabase } from "@/libs/supabaseClient";
 import { Loading } from "@/components";
 
 export default function Login() {
@@ -27,132 +20,148 @@ export default function Login() {
   const router = useRouter();
 
   if (loading) return <Loading />;
-  if (user) return null;
+  if (user) {
+    router.push("/");
 
-  const togglePasswordVisibility = () => {
-    setIsPasswordVisible((prev) => !prev);
-  };
+    return null;
+  }
+
+  const togglePasswordVisibility = () => setIsPasswordVisible((prev) => !prev);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    try {
-      await signInWithEmailAndPassword(auth as Auth, email, password);
-      router.push("/");
-    } catch (err) {
-      const error = err as FirebaseError;
 
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
       console.error(error);
       setError("Login failed. Incorrect email address or password.");
+
+      return;
     }
+
+    router.push("/");
   };
 
   const handleGoogleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
-
     setIsGoogleLoading(true);
-    try {
-      await signInWithPopup(auth as Auth, provider);
-      router.push("/");
-    } catch (err) {
-      const error = err as FirebaseError;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/` },
+    });
 
+    if (error) {
       console.error("Google Sign-In Error: ", error);
       setError("Google Sign-In failed.");
-    } finally {
       setIsGoogleLoading(false);
     }
+    // On success the browser redirects to Google, so no further action here.
   };
 
   return (
-    <div className="container mx-auto max-w-md p-6">
-      <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-        <h1 className="text-center text-3xl font-bold">Login</h1>
-        <div className="flex flex-col gap-4">
-          <div className="relative">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 text-ink">
+      <div className="glass-strong w-full max-w-md rounded-3xl p-8 shadow-glass-lg">
+        <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
+            <p className="mt-1 text-sm text-ink-faint">Log in to Reminiscape</p>
+          </div>
+
+          <div className="flex flex-col gap-4">
             <input
               required
               aria-label="Email Address"
               autoComplete="email"
-              className="w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
-              placeholder="Email Address"
+              className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+              placeholder="Email address"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+            <div className="relative">
+              <input
+                required
+                aria-label="Password"
+                autoComplete="current-password"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 pr-11 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                placeholder="Password"
+                type={isPasswordVisible ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                aria-label={
+                  isPasswordVisible ? "Hide password" : "Show password"
+                }
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink"
+                type="button"
+                onClick={togglePasswordVisibility}
+              >
+                {isPasswordVisible ? (
+                  <AiOutlineEye />
+                ) : (
+                  <AiOutlineEyeInvisible />
+                )}
+              </button>
+            </div>
+            {error && (
+              <p
+                aria-live="assertive"
+                className="text-center text-sm text-red-400"
+                role="alert"
+              >
+                {error}
+              </p>
+            )}
           </div>
-          <div className="relative">
-            <input
-              required
-              aria-label="Password"
-              autoComplete="current-password"
-              className="w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
-              placeholder="Password"
-              type={isPasswordVisible ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button
-              aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-              className="absolute right-3 top-3 text-gray-600 hover:text-gray-800"
-              type="button"
-              onClick={togglePasswordVisibility}
-            >
-              {isPasswordVisible ? <AiOutlineEye /> : <AiOutlineEyeInvisible />}
-            </button>
+
+          <button
+            className={`w-full rounded-full py-3 font-semibold transition ${
+              email && password
+                ? "bg-accent text-black hover:bg-accent-soft"
+                : "cursor-not-allowed bg-white/10 text-ink-faint"
+            }`}
+            disabled={!email || !password}
+            type="submit"
+          >
+            Log in
+          </button>
+
+          <div className="flex items-center gap-4">
+            <hr className="flex-grow border-t border-line" />
+            <span className="text-sm text-ink-faint">or</span>
+            <hr className="flex-grow border-t border-line" />
           </div>
-          {error && (
-            <p
-              aria-live="assertive"
-              className="text-center text-red-600"
-              role="alert"
-            >
-              {error}
-            </p>
-          )}
-        </div>
 
-        <button
-          className={`w-full rounded py-2 font-bold text-white transition ${
-            email && password
-              ? "bg-yellow-900 hover:bg-yellow-800"
-              : "cursor-not-allowed bg-gray-300"
-          }`}
-          disabled={!email || !password}
-          type="submit"
-        >
-          Login
-        </button>
+          <button
+            aria-label="Sign in with Google"
+            className={`flex w-full items-center justify-center gap-2 rounded-full border border-line bg-white py-3 font-semibold text-gray-700 transition ${
+              isGoogleLoading
+                ? "cursor-not-allowed opacity-50"
+                : "hover:bg-gray-100"
+            }`}
+            disabled={isGoogleLoading}
+            type="button"
+            onClick={handleGoogleSignIn}
+          >
+            <Image alt="Google" height={20} src="/google.svg" width={20} />
+            <span>
+              {isGoogleLoading ? "Signing in..." : "Sign in with Google"}
+            </span>
+          </button>
 
-        <div className="my-4 flex items-center">
-          <hr className="flex-grow border-t border-gray-300" />
-          <span className="mx-4 text-gray-500">or</span>
-          <hr className="flex-grow border-t border-gray-300" />
-        </div>
-
-        <button
-          aria-label="Sign in with Google"
-          className={`flex w-full items-center justify-center gap-2 rounded border border-gray-300 bg-white py-2 font-bold text-gray-700 transition ${
-            isGoogleLoading ? "cursor-not-allowed opacity-50" : ""
-          }`}
-          disabled={isGoogleLoading}
-          onClick={handleGoogleSignIn}
-        >
-          <Image alt="Google" height={24} src="/google.svg" width={24} />
-          <span>
-            {isGoogleLoading ? "Signing in..." : "Sign in with Google"}
-          </span>
-        </button>
-
-        <div className="mt-4 text-center">
-          <p className="text-lg">
-            Don't have an account?{" "}
-            <Link className="font-bold text-yellow-900" href="/register">
-              Sign up now
+          <p className="text-center text-sm text-ink-muted">
+            Don&apos;t have an account?{" "}
+            <Link className="font-semibold text-accent" href="/register">
+              Sign up
             </Link>
           </p>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

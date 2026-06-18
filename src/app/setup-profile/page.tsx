@@ -1,24 +1,16 @@
 // src/app/setup-profile/page.tsx
 "use client";
 import { useState, FormEvent, useEffect } from "react";
-import { getFirestore, doc, setDoc } from "firebase/firestore";
-import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { FaArrowLeft, FaArrowRightFromBracket } from "react-icons/fa6";
 
 import { uploadProfileImage } from "@/libs/profileUtils";
-import { auth } from "@/libs/firebaseConfig";
-import { useProfile } from "@/hooks";
+import { supabase } from "@/libs/supabaseClient";
+import { useAuth } from "@/hooks";
 import { ProfileImageUpload, Loading } from "@/components";
 
-const db = getFirestore();
-
 export default function SetupProfilePage() {
-  const {
-    profile,
-    loading: profileLoading,
-    error: profileError,
-  } = useProfile();
+  const { profile, loading: profileLoading } = useAuth();
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [imageLoading, setImageLoading] = useState(false);
@@ -42,11 +34,12 @@ export default function SetupProfilePage() {
   const handleImageUpload = async (file: File) => {
     setImageLoading(true);
     try {
-      if (auth.currentUser) {
-        const downloadURL = await uploadProfileImage(
-          auth.currentUser.uid,
-          file,
-        );
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const downloadURL = await uploadProfileImage(user.id, file);
 
         setProfileImageUrl(downloadURL);
       }
@@ -59,12 +52,8 @@ export default function SetupProfilePage() {
   };
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.push("/welcome");
-    } catch (error) {
-      console.error("Error logging out:", error);
-    }
+    await supabase.auth.signOut();
+    router.push("/welcome");
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -73,24 +62,29 @@ export default function SetupProfilePage() {
     setLoading(true);
 
     try {
-      if (auth.currentUser) {
-        const userDocRef = doc(db, "users", auth.currentUser.uid);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-        await setDoc(
-          userDocRef,
-          {
-            username,
-            bio,
-            photoURL: profileImageUrl,
-            email: auth.currentUser.email,
-            updatedAt: new Date().toISOString(),
-            ...(profile ? {} : { createdAt: new Date().toISOString() }),
-          },
-          { merge: true },
-        );
+      if (!user) {
+        setError("Your session expired. Please log in again.");
 
-        router.push("/");
+        return;
       }
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          username,
+          bio,
+          photo_url: profileImageUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      router.push("/");
     } catch (error) {
       setError("Failed to save profile");
       console.error("Error saving profile:", error);
@@ -103,18 +97,9 @@ export default function SetupProfilePage() {
     return <Loading />;
   }
 
-  if (profileError) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background text-ink-muted">
-        Error loading profile: {profileError}
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background text-ink">
       <div className="mx-auto flex w-full max-w-md flex-col px-4 pb-16 pt-[max(1rem,env(safe-area-inset-top))]">
-        {/* Header */}
         <div className="mb-6 flex items-center gap-3">
           <button
             aria-label="Back"
@@ -125,7 +110,7 @@ export default function SetupProfilePage() {
             <FaArrowLeft className="h-4 w-4 text-ink" />
           </button>
           <h1 className="text-2xl font-bold tracking-tight">
-            {profile ? "Edit Profile" : "Set Up Profile"}
+            {profile?.username ? "Edit Profile" : "Set Up Profile"}
           </h1>
         </div>
 
@@ -162,7 +147,6 @@ export default function SetupProfilePage() {
                 Bio
               </label>
               <textarea
-                required
                 className="w-full resize-none rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
                 placeholder="Tell us about yourself"
                 rows={4}
@@ -190,7 +174,7 @@ export default function SetupProfilePage() {
               >
                 {loading
                   ? "Saving..."
-                  : profile
+                  : profile?.username
                     ? "Save Changes"
                     : "Complete Setup"}
               </button>
@@ -198,7 +182,6 @@ export default function SetupProfilePage() {
           </form>
         </div>
 
-        {/* Logout */}
         <button
           className="mt-6 flex items-center justify-center gap-2 rounded-xl border border-red-500/40 px-4 py-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/15"
           type="button"

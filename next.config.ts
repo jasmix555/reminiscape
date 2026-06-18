@@ -3,9 +3,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    domains: [
-      "lh3.googleusercontent.com", // For Google Auth profile images
-      "firebasestorage.googleapis.com", // For Firebase Storage images
+    remotePatterns: [
+      // Supabase Storage public objects
+      { protocol: "https", hostname: "*.supabase.co" },
+      // Google account avatars (Supabase Google OAuth)
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
     ],
   },
   async headers() {

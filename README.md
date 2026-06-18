@@ -2,7 +2,7 @@
 
 > A geospatial memory journaling application that allows users to attach personal memories to real-world locations through an interactive map interface.
 
-Reminiscape is a full-stack web application built with **Next.js (App Router)** and **TypeScript**, integrating **Mapbox** for geospatial visualization and **Firebase** for authentication and data storage.
+Reminiscape is a full-stack web application built with **Next.js (App Router)** and **TypeScript**, integrating **Mapbox** for geospatial visualization and **Supabase** for authentication, database, and storage.
 
 ---
 
@@ -23,7 +23,7 @@ This project focuses on production-level frontend architecture, strict type safe
 
 - 📍 Create location-based memories
 - 🗺️ Interactive map powered by Mapbox
-- 🔐 Firebase authentication
+- 🔐 Supabase authentication
 - 📝 Structured memory data (title, description, date, coordinates)
 - 🖼️ Media upload support
 - 📏 Distance calculations using geolib
@@ -35,6 +35,7 @@ This project focuses on production-level frontend architecture, strict type safe
 ## 🛠 Tech Stack
 
 ### Frontend
+
 - **Next.js 15 (App Router)**
 - **React 18**
 - **TypeScript (Strict Mode)**
@@ -42,12 +43,14 @@ This project focuses on production-level frontend architecture, strict type safe
 - **Framer Motion**
 
 ### Geospatial
+
 - **mapbox-gl**
 - **react-map-gl**
 - **geolib**
 
 ### Backend / Infrastructure
-- **Firebase (Auth + Firestore + Storage)**
+
+- **Supabase (Auth + Postgres + Storage)**
 - **Vercel Deployment**
 
 ---
@@ -87,8 +90,8 @@ Design goal: predictable state transitions and minimized unnecessary re-renders.
 
 1. User creates memory
 2. Client-side validation occurs
-3. Firebase write operation executes
-4. Firestore listener updates local state
+3. Supabase insert executes (Postgres + Storage)
+4. Local state refetches from Supabase
 5. Map re-renders with updated markers
 
 This ensures UI consistency with backend state.
@@ -100,16 +103,19 @@ This ensures UI consistency with backend state.
 This project emphasizes production-ready development discipline.
 
 ### Type Safety
+
 - Strict TypeScript configuration
 - No uncontrolled `any`
 - Clearly defined domain models
 
 ### Linting & Formatting
+
 - ESLint (Next.js + TypeScript rules)
 - Prettier (with Tailwind plugin)
 - Unused import enforcement
 
 ### Git Workflow
+
 - Husky pre-commit hooks
 - Commitlint (Conventional Commits)
 - lint-staged validation
@@ -127,7 +133,7 @@ If scaling beyond prototype stage:
 - Introduce server-side validation layer
 - Optimize marker rendering for large datasets
 - Add caching strategy for frequently accessed clusters
-- Consider backend abstraction layer beyond Firebase if needed
+- Consider a backend abstraction layer if needed
 
 ---
 
@@ -138,3 +144,4 @@ git clone https://github.com/jasmix555/reminiscape
 cd reminiscape
 npm install
 npm run dev
+```

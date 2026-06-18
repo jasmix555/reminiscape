@@ -4,10 +4,10 @@
 
 /* ===== Design tokens ===== */
 :root {
-  --background: #2a3138;
+  --background: #0e0e11;
   --foreground: #f5f5f7;
-  --glass-bg: rgba(58, 68, 78, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.16);
+  --glass-bg: rgba(20, 20, 24, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.12);
 }
 
 /* Reset default margins and paddings */
@@ -34,7 +34,7 @@ body {
   }
 
   .glass-strong {
-    background: rgba(42, 50, 58, 0.9);
+    background: rgba(15, 15, 18, 0.85);
     -webkit-backdrop-filter: blur(28px) saturate(160%);
     backdrop-filter: blur(28px) saturate(160%);
     border: 1px solid var(--glass-border);
@@ -45,7 +45,7 @@ body {
     @apply glass flex items-center justify-center rounded-full text-ink shadow-glass transition-all duration-200;
   }
   .ctrl-btn:hover {
-    background: rgba(80, 92, 102, 0.7);
+    background: rgba(42, 42, 48, 0.8);
     @apply scale-105;
   }
   .ctrl-btn:active {
@@ -79,21 +79,17 @@ body {
 }
 
 /* Hide Mapbox's default-corner controls entirely — we render our own
-   uniform glass buttons (zoom / locate) and trigger geolocation via ref.
-   The user-location dot + tracking still work because they are map layers,
-   not part of this control button. */
+   uniform glass buttons (zoom / locate) and trigger geolocation via ref. */
 .mapboxgl-ctrl-top-right,
 .mapboxgl-ctrl-top-left {
   display: none !important;
 }
 
-/* Style for the geolocation button when active */
 .mapboxgl-ctrl-geolocate-active {
   @apply text-accent;
   z-index: 50;
 }
 
-/* Accuracy circle + location dot */
 .mapboxgl-user-location-accuracy-circle {
   background: rgba(245, 185, 66, 0.18) !important;
   pointer-events: none !important;
@@ -108,7 +104,6 @@ body {
   background: rgba(245, 185, 66, 0.6);
 }
 
-/* Hide mapbox logo and attribution text */
 .mapboxgl-ctrl-bottom-left {
   @apply hidden;
 }

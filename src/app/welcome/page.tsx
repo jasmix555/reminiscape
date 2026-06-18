@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { HiLocationMarker } from "react-icons/hi";
 
 import { useAuth } from "@/hooks";
 import { Loading } from "@/components";
@@ -21,41 +22,52 @@ export default function Welcome() {
   if (user) return null;
 
   return (
-    <main className="relative min-h-screen">
-      {/* Dark gray background layer */}
-      <div className="absolute inset-0 bg-black opacity-10" />
+    <main className="relative flex h-dvh w-full flex-col overflow-hidden bg-background">
+      {/* Atmospheric background photo */}
+      <div className="absolute inset-0 bg-trail-pattern bg-cover bg-center" />
 
-      {/* Base layer - Trail pattern with reduced opacity */}
-      <div
-        className="absolute inset-0 bg-trail-pattern bg-cover bg-center"
-        style={{
-          mixBlendMode: "multiply", // Adjust blend mode if needed
-        }}
-      />
+      {/* Gradient scrim so the photo stays moody but the copy reads cleanly */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/45 to-[#1b2026]" />
 
       {/* Content */}
-      <div className="container relative mx-auto flex h-screen flex-col justify-between gap-4 p-4">
-        <div className="mt-36 flex flex-col items-center justify-center gap-2">
-          <h1 className="text-4xl font-bold text-yellow-900">Reminiscape</h1>
-          <p className="text-xl text-gray-500">
-            Unlock the Past, Treasure the Present
-          </p>
+      <div className="relative z-10 flex h-full flex-col px-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))]">
+        {/* Brand mark */}
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-black shadow-glass">
+            <HiLocationMarker className="h-5 w-5" />
+          </span>
+          <span className="text-lg font-semibold tracking-tight text-white/90">
+            Reminiscape
+          </span>
         </div>
-        <div className="mb-16 flex flex-col justify-between gap-4 text-center">
-          <Link
-            aria-label="Login for parents"
-            className="w-full rounded bg-yellow-900 px-4 py-2 font-bold text-white transition duration-100 ease-in hover:bg-yellow-700"
-            href="/login"
-          >
-            Login
-          </Link>
-          <Link
-            aria-label="Sign up for new parents"
-            className="w-full rounded border-2 border-orange-400 bg-none px-4 py-2 font-bold text-orange-400 transition duration-100 ease-in hover:bg-orange-400 hover:text-white"
-            href="/register"
-          >
-            Register Now
-          </Link>
+
+        {/* Headline pinned to the lower third */}
+        <div className="mt-auto space-y-4">
+          <h1 className="text-[2.75rem] font-bold leading-[1.05] tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]">
+            Unlock the past,
+            <br />
+            treasure the present.
+          </h1>
+          <p className="max-w-sm text-base leading-relaxed text-white/75">
+            Bury photos, videos and voice notes as time capsules on the map —
+            then rediscover them when you return to the spot.
+          </p>
+
+          {/* Actions */}
+          <div className="flex flex-col gap-3 pt-4">
+            <Link
+              className="w-full rounded-full bg-accent py-3.5 text-center font-semibold text-black transition-all hover:bg-accent-soft active:scale-[0.98]"
+              href="/login"
+            >
+              Log in
+            </Link>
+            <Link
+              className="glass w-full rounded-full py-3.5 text-center font-semibold text-white transition-colors hover:bg-white/10 active:scale-[0.98]"
+              href="/register"
+            >
+              Create account
+            </Link>
+          </div>
         </div>
       </div>
     </main>

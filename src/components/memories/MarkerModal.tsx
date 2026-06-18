@@ -11,7 +11,7 @@ import { FaLock } from "react-icons/fa6";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
-import MediaPopup from "./MediaPopup"; // Import MediaPopup
+import MediaPopup from "../ui/MediaPopup"; // Import MediaPopup
 
 import { useMemories } from "@/hooks/useMemories";
 import { Memory } from "@/types";

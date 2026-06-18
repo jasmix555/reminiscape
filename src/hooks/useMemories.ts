@@ -1,23 +1,35 @@
 import { useState, useCallback, useEffect } from "react";
-import {
-  collection,
-  query,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-  where,
-} from "firebase/firestore";
-import { ref, deleteObject } from "firebase/storage";
 import toast from "react-hot-toast";
 
 import { useAuth } from "./useAuth";
 
-import { UserProfile } from "@/types";
-import { db, storage } from "@/libs"; // Ensure storage is imported
-import { Memory } from "@/types";
+import { supabase } from "@/libs/supabaseClient";
+import { deleteMediaByUrl } from "@/libs/supabaseStorage";
+import { Memory, UserProfile } from "@/types";
+
+// Map a Supabase `memories` row to the app's Memory shape.
+const mapRow = (row: Record<string, any>, selfUid: string): Memory => ({
+  id: row.id,
+  title: row.title,
+  description: row.description ?? "",
+  notes: row.notes ?? "",
+  location: { latitude: row.latitude, longitude: row.longitude },
+  imageUrls: row.image_urls ?? [],
+  videoUrls: row.video_urls ?? [],
+  voiceMessageUrl: row.voice_message_url ?? "",
+  // Own memories are always unlocked; others honour the stored flag.
+  isUnlocked: row.user_id === selfUid ? true : Boolean(row.is_unlocked),
+  createdBy: {
+    uid: row.user_id,
+    email: "",
+    username: row.created_by_username ?? "",
+    photoURL: row.created_by_photo_url ?? "",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as UserProfile,
+  createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+  updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
+});
 
 export const useMemories = () => {
   const { user, profile } = useAuth();
@@ -26,7 +38,7 @@ export const useMemories = () => {
   const [error, setError] = useState<string | null>(null);
 
   const loadMemories = useCallback(async () => {
-    if (!user || !profile) {
+    if (!user) {
       setMemories([]);
       setLoading(false);
 
@@ -34,68 +46,64 @@ export const useMemories = () => {
     }
 
     try {
-      const memoriesRef = collection(db, "memories");
-      const memoriesQuery = query(
-        memoriesRef,
-        where("createdBy.uid", "in", [user.uid, ...(profile.friends || [])]),
+      // RLS already limits rows to the user's own + their friends' memories.
+      const { data, error } = await supabase
+        .from("memories")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      setMemories(
+        (data ?? []).map((r: Record<string, any>) => mapRow(r, user.uid)),
       );
-
-      const snapshot = await getDocs(memoriesQuery);
-
-      if (!snapshot.empty) {
-        const fetchedMemories = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate(),
-          updatedAt: doc.data().updatedAt?.toDate(),
-          isUnlocked: doc.data().createdBy.uid === user.uid, // Automatically unlock for the current user
-        })) as Memory[];
-
-        setMemories(fetchedMemories);
-        setError(null);
-      } else {
-        setMemories([]);
-      }
-    } catch (error: any) {
-      console.error("Error loading memories:", error.message);
-      setError(error.message || "Failed to load memories.");
+      setError(null);
+    } catch (err: any) {
+      console.error("Error loading memories:", err.message);
+      setError(err.message || "Failed to load memories.");
       toast.error("Failed to load memories. Please try again later.");
     } finally {
       setLoading(false);
     }
-  }, [user, profile]);
+  }, [user]);
 
   const addMemory = async (
     memoryData: Omit<Memory, "id" | "createdBy" | "createdAt" | "updatedAt">,
   ) => {
-    if (!user || !profile) {
+    if (!user) {
       throw new Error("User must be authenticated to create memories");
     }
 
-    try {
-      const memoriesRef = collection(db, "memories");
+    const insert = {
+      user_id: user.uid,
+      title: memoryData.title,
+      description: memoryData.description ?? "",
+      notes: memoryData.notes ?? "",
+      latitude: memoryData.location.latitude,
+      longitude: memoryData.location.longitude,
+      image_urls: memoryData.imageUrls ?? [],
+      video_urls: memoryData.videoUrls ?? [],
+      voice_message_url: memoryData.voiceMessageUrl ?? "",
+      is_unlocked: memoryData.isUnlocked ?? false,
+      created_by_username: profile?.username || user.email || "",
+      created_by_photo_url: profile?.photoURL || "",
+    };
 
-      const newMemoryData = {
-        ...memoryData,
-        createdBy: {
-          uid: user.uid,
-          username: profile.username || user.email,
-          photoURL: profile.photoURL || null,
-        },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
+    const { data, error } = await supabase
+      .from("memories")
+      .insert(insert)
+      .select("id")
+      .single();
 
-      const docRef = await addDoc(memoriesRef, newMemoryData);
-
-      await loadMemories();
-
-      return docRef.id;
-    } catch (error: any) {
+    if (error) {
       console.error("Error adding memory:", error.message);
       toast.error(error.message || "Failed to create memory.");
       throw error;
     }
+
+    await loadMemories();
+
+    return data.id;
   };
 
   const updateMemory = async (memoryId: string, updates: Partial<Memory>) => {
@@ -105,25 +113,34 @@ export const useMemories = () => {
       return;
     }
 
-    try {
-      const memoryRef = doc(db, "memories", memoryId);
+    const patch: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
 
-      await updateDoc(memoryRef, {
-        ...updates,
-        updatedAt: serverTimestamp(),
-      });
+    if (updates.title !== undefined) patch.title = updates.title;
+    if (updates.notes !== undefined) patch.notes = updates.notes;
+    if (updates.imageUrls !== undefined) patch.image_urls = updates.imageUrls;
+    if (updates.videoUrls !== undefined) patch.video_urls = updates.videoUrls;
 
-      await loadMemories(); // Refresh data after update
-      toast.success("Memory updated successfully!");
-    } catch (error: any) {
+    const { error } = await supabase
+      .from("memories")
+      .update(patch)
+      .eq("id", memoryId);
+
+    if (error) {
       console.error("Error updating memory:", error.message);
       toast.error("Failed to update memory.");
+
+      return;
     }
+
+    await loadMemories();
+    toast.success("Memory updated successfully!");
   };
 
   const deleteMemory = async (
     memoryId: string,
-    memoryData: Partial<Memory & { createdBy: Partial<UserProfile> }>,
+    memoryData: Partial<Memory>,
   ) => {
     if (!user) {
       toast.error("You must be logged in to delete memories.");
@@ -132,69 +149,25 @@ export const useMemories = () => {
     }
 
     try {
-      const memoryRef = doc(db, "memories", memoryId);
-      const memorySnap = await getDocs(
-        query(collection(db, "memories"), where("id", "==", memoryId)),
-      );
+      const urls = [
+        ...(memoryData.imageUrls || []),
+        ...(memoryData.videoUrls || []),
+      ];
 
-      if (memorySnap.empty) {
-        toast.error("Memory does not exist.");
+      if (memoryData.voiceMessageUrl) urls.push(memoryData.voiceMessageUrl);
 
-        return;
-      }
+      // Remove media first (best effort), then the row.
+      await Promise.allSettled(urls.map((u) => deleteMediaByUrl(u)));
 
-      // Delete associated images
-      if (memoryData.imageUrls && memoryData.imageUrls.length > 0) {
-        await Promise.all(
-          memoryData.imageUrls.map(async (imageUrl) => {
-            try {
-              const imageRef = ref(storage, imageUrl);
+      const { error } = await supabase
+        .from("memories")
+        .delete()
+        .eq("id", memoryId);
 
-              await deleteObject(imageRef);
-            } catch (error) {
-              console.warn(`Failed to delete image: ${imageUrl}`, error);
-            }
-          }),
-        );
-      }
-
-      // Delete associated videos
-      if (memoryData.videoUrls && memoryData.videoUrls.length > 0) {
-        await Promise.all(
-          memoryData.videoUrls.map(async (videoUrl) => {
-            try {
-              const videoRef = ref(storage, videoUrl);
-
-              await deleteObject(videoRef);
-            } catch (error) {
-              console.warn(`Failed to delete video: ${videoUrl}`, error);
-            }
-          }),
-        );
-      }
-
-      // Delete associated voice message
-      if (
-        memoryData.voiceMessageUrl &&
-        memoryData.voiceMessageUrl.trim() !== ""
-      ) {
-        try {
-          const voiceRef = ref(storage, memoryData.voiceMessageUrl);
-
-          await deleteObject(voiceRef);
-        } catch (error) {
-          console.warn(
-            `Failed to delete voice message: ${memoryData.voiceMessageUrl}`,
-            error,
-          );
-        }
-      }
-
-      // Delete memory from Firestore
-      await deleteDoc(memoryRef);
+      if (error) throw error;
 
       toast.success("Memory deleted successfully!");
-      await loadMemories(); // Refresh memory list after deletion
+      await loadMemories();
     } catch (error) {
       console.error("Error deleting memory:", error);
       toast.error("Failed to delete memory.");
@@ -210,13 +183,13 @@ export const useMemories = () => {
   }, [user, loadMemories]);
 
   useEffect(() => {
-    if (user && profile) {
+    if (user) {
       loadMemories();
     } else {
       setMemories([]);
       setLoading(false);
     }
-  }, [user, profile, loadMemories]);
+  }, [user, loadMemories]);
 
   return {
     memories,

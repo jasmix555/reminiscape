@@ -1,133 +1,71 @@
 // hooks/useAuth.ts
 import { useEffect, useState } from "react";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import Cookies from "js-cookie";
 
-import { auth, db } from "@/libs";
-import { UserProfile } from "@/types";
+import { supabase } from "@/libs/supabaseClient";
+import { AppUser, UserProfile } from "@/types";
+
+// Maps a Supabase `profiles` row -> the app's UserProfile shape.
+const mapProfile = (row: Record<string, any>): UserProfile => ({
+  uid: row.id,
+  email: row.email ?? "",
+  username: row.username ?? "",
+  displayName: row.username ?? "",
+  bio: row.bio ?? "",
+  photoURL: row.photo_url ?? "",
+  friends: row.friends ?? [],
+  friendRequests: row.friend_requests ?? [],
+  createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+  updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
+});
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isProfileIncomplete, setIsProfileIncomplete] = useState(false);
-  const router = useRouter();
-
-  const checkProfileCompletion = (profile: UserProfile | null): boolean => {
-    if (!profile) return false;
-
-    // A profile counts as "set up" once it has a username. The profile photo
-    // is optional in the setup form, so don't require it here — otherwise
-    // users without a photo get sent back to /setup-profile on every login.
-    return Boolean(profile.username);
-  };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      try {
-        if (user) {
-          setUser(user);
+    let active = true;
 
-          // Make sure the account still exists and isn't disabled. A forced
-          // token refresh fails for deleted/disabled accounts, so we sign out
-          // and clear the stale cookie — otherwise a "zombie" session keeps
-          // the user stuck (e.g. unable to load /welcome). Transient network
-          // failures are ignored so a briefly-offline user isn't logged out.
-          try {
-            await user.getIdToken(true);
-          } catch (refreshError) {
-            const code = (refreshError as { code?: string })?.code ?? "";
+    const hydrate = async (sessionUser: any) => {
+      if (!sessionUser) {
+        setUser(null);
+        setProfile(null);
 
-            if (code !== "auth/network-request-failed") {
-              await signOut(auth).catch(() => {});
-              Cookies.remove("auth_token", { path: "/" });
-              router.push("/welcome");
-
-              return;
-            }
-          }
-
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          const userData = userDoc.exists()
-            ? (userDoc.data() as UserProfile)
-            : null;
-
-          setProfile(userData);
-          setIsProfileIncomplete(!checkProfileCompletion(userData));
-
-          // Email/password sign-ups must verify their email before entering
-          // the app (Google accounts are already verified). Until then we keep
-          // them where they are and withhold the session cookie that
-          // middleware uses to gate protected routes.
-          if (!user.emailVerified) {
-            Cookies.remove("auth_token", { path: "/" });
-
-            return;
-          }
-
-          const token = await user.getIdToken();
-
-          Cookies.set("auth_token", token, {
-            path: "/",
-            expires: 7,
-            sameSite: "strict",
-          });
-
-          const currentPath = window.location.pathname;
-
-          if (["/welcome", "/login", "/register"].includes(currentPath)) {
-            router.push(
-              checkProfileCompletion(userData) ? "/" : "/setup-profile",
-            );
-          }
-        } else {
-          setUser(null);
-          setProfile(null);
-          setIsProfileIncomplete(false);
-          Cookies.remove("auth_token", { path: "/" });
-
-          const currentPath = window.location.pathname;
-
-          if (!["/welcome", "/login", "/register"].includes(currentPath)) {
-            router.push("/welcome");
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-        // The session is unusable — clear it fully so we don't get stuck with
-        // a stale cookie that keeps redirecting away from public pages.
-        await signOut(auth).catch(() => {});
-        Cookies.remove("auth_token", { path: "/" });
-
-        if (
-          !["/welcome", "/login", "/register"].includes(
-            window.location.pathname,
-          )
-        ) {
-          router.push("/welcome");
-        }
-      } finally {
-        setLoading(false);
+        return;
       }
+
+      setUser({
+        uid: sessionUser.id,
+        email: sessionUser.email ?? null,
+        emailVerified: Boolean(sessionUser.email_confirmed_at),
+      });
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", sessionUser.id)
+        .maybeSingle();
+
+      if (active) setProfile(data ? mapProfile(data) : null);
+    };
+
+    supabase.auth.getSession().then(async ({ data: { session } }: any) => {
+      if (!active) return;
+      await hydrate(session?.user ?? null);
+      if (active) setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [router]);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+      hydrate(session?.user ?? null);
+    });
 
-  const getDisplayName = () => {
-    if (!user) return null;
-    if (profile?.username) return profile.username;
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
-    return user.email;
-  };
-
-  return {
-    user,
-    profile,
-    loading,
-    isProfileIncomplete,
-    getDisplayName,
-  };
+  return { user, profile, loading };
 }

@@ -1,14 +1,8 @@
 "use client";
-import { useState, useEffect, FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import {
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-} from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import Cookies from "js-cookie";
+import { useState, FormEvent } from "react";
+import Link from "next/link";
 
-import { auth, db } from "@/libs/firebaseConfig"; // Import Firestore config
+import { supabase } from "@/libs/supabaseClient";
 import { Loading } from "@/components";
 import { useAuth } from "@/hooks";
 
@@ -17,123 +11,65 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [timer, setTimer] = useState<number | null>(null);
-  const router = useRouter();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setError(null);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password,
-      );
-      const user = userCredential.user;
 
-      // Store user data in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        email: user.email,
-        username: email.split("@")[0], // Basic username logic
-        photoURL: "", // Default placeholder for profile picture
-        bio: "", // Default bio
-        friends: [], // Initialize an empty friends array
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/` },
+    });
 
-      // Send email verification
-      await sendEmailVerification(user);
-      setIsConfirming(true);
-      startTimer();
-    } catch (error) {
-      setError(
-        error instanceof Error ? error.message : "An unknown error occurred",
-      );
+    if (error) {
+      setError(error.message);
       console.error("Signup Error:", error);
+
+      return;
     }
+
+    // If the project requires email confirmation there is no session yet.
+    setHasSession(Boolean(data.session));
+    setIsConfirming(true);
   };
 
-  const startTimer = () => {
-    const timerDuration = 300; // seconds
+  const handleResend = async () => {
+    const { error } = await supabase.auth.resend({ type: "signup", email });
 
-    setTimer(timerDuration);
-
-    const interval = setInterval(() => {
-      setTimer((prev) => {
-        if (prev === 1) {
-          clearInterval(interval);
-
-          return null;
-        }
-
-        return prev! - 1;
-      });
-    }, 1000);
+    if (error) setError(error.message);
+    else setError(null);
   };
 
-  useEffect(() => {
-    if (isConfirming) {
-      const interval = setInterval(async () => {
-        const user = auth.currentUser;
-
-        if (user) {
-          await user.reload(); // Reload to get updated user data
-          if (user.emailVerified) {
-            clearInterval(interval);
-
-            // Now that the account is verified, establish the session cookie
-            // middleware checks before entering the protected area.
-            const token = await user.getIdToken(true);
-
-            Cookies.set("auth_token", token, {
-              path: "/",
-              expires: 7,
-              sameSite: "strict",
-            });
-
-            router.push("/setup-profile"); // Redirect after email is verified
-          }
-        }
-      }, 3000);
-
-      return () => clearInterval(interval);
-    }
-  }, [isConfirming, router]);
-
-  const handleResendVerification = async () => {
-    const user = auth.currentUser;
-
-    if (user) {
-      await sendEmailVerification(user);
-      setError(null);
-      startTimer();
-    }
-  };
-
-  if (loading) {
-    return <Loading />;
-  }
+  if (loading) return <Loading />;
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        {error && <p className="mb-4 text-center text-red-600">{error}</p>}
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 text-ink">
+      <div className="glass-strong w-full max-w-md rounded-3xl p-8 shadow-glass-lg">
+        {error && (
+          <p className="mb-4 rounded-xl bg-red-500/15 p-3 text-center text-sm text-red-400">
+            {error}
+          </p>
+        )}
+
         {!isConfirming ? (
           <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-            <h1 className="text-center text-3xl font-bold">
-              Get Started with the App
-            </h1>
-            <p className="text-center text-sm">
-              Please enter a valid email address.
-            </p>
+            <div className="text-center">
+              <h1 className="text-3xl font-bold tracking-tight">
+                Create account
+              </h1>
+              <p className="mt-1 text-sm text-ink-faint">
+                Start collecting your time capsules
+              </p>
+            </div>
             <div className="flex flex-col gap-4">
               <input
                 required
                 autoComplete="email"
-                className="w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
-                placeholder="Email Address"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                placeholder="Email address"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -141,43 +77,59 @@ export default function Register() {
               <input
                 required
                 autoComplete="new-password"
-                className="w-full border-b-2 border-gray-500 bg-transparent px-3 py-2 placeholder-gray-500 focus:border-yellow-900 focus:outline-none"
-                placeholder="Password"
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent"
+                minLength={6}
+                placeholder="Password (min 6 characters)"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
             <button
-              className={`w-full rounded py-2 font-bold text-white transition ${
+              className={`w-full rounded-full py-3 font-semibold transition ${
                 !email || !password
-                  ? "cursor-not-allowed bg-gray-300"
-                  : "bg-yellow-900 hover:bg-yellow-800"
+                  ? "cursor-not-allowed bg-white/10 text-ink-faint"
+                  : "bg-accent text-black hover:bg-accent-soft"
               }`}
               disabled={!email || !password}
               type="submit"
             >
-              Verify Email Address
+              Sign up
             </button>
+            <p className="text-center text-sm text-ink-muted">
+              Already have an account?{" "}
+              <Link className="font-semibold text-accent" href="/login">
+                Log in
+              </Link>
+            </p>
           </form>
         ) : (
           <div className="text-center">
-            <p className="mb-4 text-green-600">
-              A confirmation email has been sent to {email}. Please check your
-              inbox to activate your account.
+            <h1 className="mb-2 text-2xl font-bold tracking-tight">
+              Check your email
+            </h1>
+            <p className="text-sm text-ink-muted">
+              {hasSession
+                ? "Your account is ready — you can log in."
+                : `We sent a confirmation link to ${email}. Click it to activate your account, then come back and log in.`}
             </p>
-            <button
-              className="text-blue-500 underline"
-              onClick={handleResendVerification}
-            >
-              Resend
-            </button>
-            {timer !== null && (
-              <p className="mt-2 text-sm text-gray-600">{`Resend available in ${timer} seconds`}</p>
-            )}
-            <p className="mt-4 text-red-600">
-              Please verify your email to complete the registration process.
-            </p>
+            <div className="mt-6 flex flex-col gap-3">
+              <Link
+                className="w-full rounded-full bg-accent py-3 font-semibold text-black transition hover:bg-accent-soft"
+                href="/login"
+              >
+                Go to login
+              </Link>
+              {!hasSession && (
+                <button
+                  className="text-sm text-ink-faint underline hover:text-ink"
+                  type="button"
+                  onClick={handleResend}
+                >
+                  Resend confirmation email
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

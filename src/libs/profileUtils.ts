@@ -1,141 +1,69 @@
 // src/libs/profileUtils.ts
 import type { UserProfile } from "@/types";
 
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject,
-} from "firebase/storage";
+import { supabase } from "./supabaseClient";
+import { uploadMedia, deleteMediaByUrl } from "./supabaseStorage";
 
-import { db, storage } from "./firebaseConfig";
-
-/**
- * Creates a new user profile in Firestore.
- * @param uid - User ID
- * @param data - Partial user profile data
- * @returns The created user profile
- */
-export const createUserProfile = async (
-  uid: string,
-  data: Partial<UserProfile>,
-) => {
-  try {
-    const userRef = doc(db, "users", uid);
-    const newProfile: UserProfile = {
-      uid,
-      email: data.email || "",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...data,
-    };
-
-    await setDoc(userRef, newProfile);
-
-    return newProfile;
-  } catch (error) {
-    console.error(
-      "Error creating user profile:",
-      error instanceof Error ? error.message : error,
-    );
-    throw error;
-  }
-};
-
-/**
- * Fetches a user profile from Firestore.
- * @param uid - User ID
- * @returns The user profile or null if not found
- */
+/** Fetch a user's raw profile row (or null). */
 export const getUserProfile = async (uid: string) => {
-  try {
-    const userRef = doc(db, "users", uid);
-    const userSnap = await getDoc(userRef);
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", uid)
+    .maybeSingle();
 
-    if (userSnap.exists()) {
-      return userSnap.data() as UserProfile;
-    }
-
-    return null;
-  } catch (error) {
-    console.error(
-      "Error fetching user profile:",
-      error instanceof Error ? error.message : error,
-    );
+  if (error) {
+    console.error("Error fetching user profile:", error.message);
     throw error;
   }
+
+  return data;
 };
 
-/**
- * Updates an existing user profile in Firestore.
- * @param uid - User ID
- * @param data - Partial user profile data to update
- */
+/** Update an existing profile (snake_case columns). */
 export const updateUserProfile = async (
   uid: string,
-  data: Partial<UserProfile>,
+  data: Partial<{ username: string; bio: string; photoURL: string }>,
 ) => {
-  try {
-    const userRef = doc(db, "users", uid);
+  const patch: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
 
-    await updateDoc(userRef, {
-      ...data,
-      updatedAt: new Date(),
-    });
-  } catch (error) {
-    console.error(
-      "Error updating user profile:",
-      error instanceof Error ? error.message : error,
-    );
+  if (data.username !== undefined) patch.username = data.username;
+  if (data.bio !== undefined) patch.bio = data.bio;
+  if (data.photoURL !== undefined) patch.photo_url = data.photoURL;
+
+  const { error } = await supabase.from("profiles").update(patch).eq("id", uid);
+
+  if (error) {
+    console.error("Error updating user profile:", error.message);
     throw error;
   }
 };
 
 /**
- * Uploads a new profile image to Firebase Storage and updates the user's profile.
- * @param uid - User ID
- * @param file - The image file to upload
- * @returns The download URL of the uploaded image
+ * Upload a new profile image to Supabase Storage, remove the old one, and
+ * save the new public URL on the profile.
  */
-export const uploadProfileImage = async (uid: string, file: File) => {
-  try {
-    // Fetch the current user profile to check for existing photoURL
-    const oldProfile = await getUserProfile(uid);
-    const oldPhotoURL = oldProfile?.photoURL;
+export const uploadProfileImage = async (
+  uid: string,
+  file: File,
+): Promise<string> => {
+  const existing = await getUserProfile(uid);
 
-    // Delete old image if it exists
-    if (oldPhotoURL) {
-      try {
-        const oldImageRef = ref(storage, oldPhotoURL);
-
-        await deleteObject(oldImageRef);
-      } catch (error) {
-        console.warn(
-          "Warning: Error deleting old profile image:",
-          error instanceof Error ? error.message : error,
-        );
-      }
+  if (existing?.photo_url) {
+    try {
+      await deleteMediaByUrl(existing.photo_url);
+    } catch (error) {
+      console.warn("Could not delete old profile image:", error);
     }
-
-    // Upload new image
-    const storageRef = ref(
-      storage,
-      `profileImages/${uid}/${Date.now()}-${file.name}`,
-    );
-
-    await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(storageRef);
-
-    // Update the user's profile with the new photoURL
-    await updateUserProfile(uid, { photoURL: downloadURL });
-
-    return downloadURL;
-  } catch (error) {
-    console.error(
-      "Error uploading profile image:",
-      error instanceof Error ? error.message : error,
-    );
-    throw error;
   }
+
+  const url = await uploadMedia(file, "profiles", file.type);
+
+  await updateUserProfile(uid, { photoURL: url });
+
+  return url;
 };
+
+export type { UserProfile };

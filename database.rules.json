@@ -1,7 +1,0 @@
-{
-  "//": "Realtime Database is NOT used by Reminiscape (no firebase/database imports). Locked down by default. If you start using RTDB, replace the rules below with scoped, authenticated rules (a per-user example is commented in FIREBASE_SETUP.md).",
-  "rules": {
-    ".read": false,
-    ".write": false
-  }
-}
