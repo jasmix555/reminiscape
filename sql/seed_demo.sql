@@ -76,6 +76,24 @@ begin
   end loop;
 end $$;
 
+-- 1b) Repair auth token columns.
+--     GoTrue reads these as plain strings during sign-in; a manual INSERT
+--     leaves them NULL, which makes signInWithPassword return a 500
+--     (AuthRetryableFetchError). Set any NULLs to '' for the seeded accounts.
+--     (Fixes rows already created by an earlier run, since the INSERT above
+--     uses ON CONFLICT DO NOTHING and won't update them.)
+update auth.users set
+  confirmation_token         = coalesce(confirmation_token, ''),
+  recovery_token             = coalesce(recovery_token, ''),
+  email_change               = coalesce(email_change, ''),
+  email_change_token_new     = coalesce(email_change_token_new, ''),
+  email_change_token_current = coalesce(email_change_token_current, ''),
+  phone_change               = coalesce(phone_change, ''),
+  phone_change_token         = coalesce(phone_change_token, ''),
+  reauthentication_token     = coalesce(reauthentication_token, '')
+where email like 'demo+%@reminiscape.app'
+   or email = 'demo@reminiscape.app';
+
 -- ----------------------------------------------------------------------------
 -- 2) Friendships
 --    - all 16 dummies are mutual friends with each other (rich social world)
