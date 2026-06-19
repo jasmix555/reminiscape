@@ -8,3 +8,4 @@ export { default as Avatar } from "./ui/Avatar";
 export * from "./profile/ProfileImageUpload";
 
 export { default as Map } from "./map/Map";
+export { default as MemoryInteractions } from "./memories/MemoryInteractions";

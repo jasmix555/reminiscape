@@ -13,6 +13,8 @@ import toast from "react-hot-toast";
 
 import MediaPopup from "../ui/MediaPopup";
 
+import MemoryInteractions from "./MemoryInteractions";
+
 import { useMemories } from "@/hooks/useMemories";
 import { Memory } from "@/types";
 
@@ -253,6 +255,13 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
                   </div>
                 ))}
               </>
+            )}
+
+            {isMemoryUnlocked && !timeLocked && (
+              <MemoryInteractions
+                memoryId={memory.id}
+                ownerId={memory.createdBy.uid}
+              />
             )}
 
             {isCurrentUserMemory && (

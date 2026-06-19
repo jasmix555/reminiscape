@@ -8,7 +8,7 @@ import { HiLocationMarker, HiX, HiTrash, HiChevronRight } from "react-icons/hi";
 
 import { supabase } from "@/libs/supabaseClient";
 import { deleteMediaByUrl } from "@/libs/supabaseStorage";
-import { Loading, Avatar } from "@/components";
+import { Loading, Avatar, MemoryInteractions } from "@/components";
 import MediaPopup from "@/components/ui/MediaPopup";
 
 interface Row {
@@ -416,6 +416,13 @@ export default function MemoriesPage() {
                   />
                 )}
               </>
+            )}
+
+            {!sealedSelected && (
+              <MemoryInteractions
+                memoryId={selected.id}
+                ownerId={selected.user_id}
+              />
             )}
 
             {ownSelected && (

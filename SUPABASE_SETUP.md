@@ -184,3 +184,11 @@ OAuth client ID/secret. Add `https://YOUR-PROJECT.supabase.co/auth/v1/callback`
 as an authorized redirect URI in Google Cloud Console.
 
 Done — `npm run dev` and s
+
+## 6. Reactions & comments
+
+Memories support Instagram-style interactions: one emoji reaction per person and
+flat text comments, visible to the capsule's creator and everyone who has
+unlocked it. Run the migration in `sql/interactions.sql` (Supabase → SQL Editor).
+It is idempotent and also ensures the `memory_unlocks` table and `unlock_at`
+column exist, since the reaction/comment policies depend on them.
