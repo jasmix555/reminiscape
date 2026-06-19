@@ -1,4 +1,4 @@
-// src/components/Header.tsx
+// src/components/layout/Header.tsx
 "use client";
 import Link from "next/link";
 import { useState } from "react";
@@ -9,6 +9,7 @@ import {
   FaUsers,
   FaHouse,
   FaUser,
+  FaClockRotateLeft,
   FaArrowRightFromBracket,
   FaXmark,
 } from "react-icons/fa6";
@@ -20,6 +21,7 @@ import { supabase } from "@/libs/supabaseClient";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: FaHouse },
+  { href: "/memories", label: "Memories", icon: FaClockRotateLeft },
   { href: "/friends", label: "Friends", icon: FaUsers },
   { href: "/setup-profile", label: "Profile", icon: FaUser },
   { href: "/settings", label: "Settings", icon: FaGear },
@@ -48,7 +50,6 @@ const Header = () => {
 
   return (
     <>
-      {/* Top bar — a single profile button opens the menu (settings live inside) */}
       <header className="pointer-events-none fixed inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <button
           aria-label="Open menu"
@@ -66,11 +67,9 @@ const Header = () => {
           Reminiscape
         </Link>
 
-        {/* Spacer keeps the wordmark centered */}
         <div className="h-11 w-11" />
       </header>
 
-      {/* Slide-in panel */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -97,7 +96,6 @@ const Header = () => {
                 <FaXmark className="h-4 w-4 text-ink" />
               </button>
 
-              {/* Profile */}
               <Link
                 className="mt-6 flex flex-col items-center gap-3"
                 href="/setup-profile"
@@ -116,7 +114,6 @@ const Header = () => {
                 </div>
               </Link>
 
-              {/* Nav */}
               <nav className="mt-10 flex flex-col gap-2">
                 {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
                   const active = pathname === href;
@@ -139,7 +136,6 @@ const Header = () => {
                 })}
               </nav>
 
-              {/* Logout */}
               <button
                 className="mt-auto flex items-center justify-center gap-2 rounded-xl border border-red-500/40 px-4 py-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/15"
                 type="button"

@@ -16,7 +16,13 @@ const mapRow = (row: Record<string, any>, selfUid: string): Memory => ({
   imageUrls: row.image_urls ?? [],
   videoUrls: row.video_urls ?? [],
   voiceMessageUrl: row.voice_message_url ?? "",
-  isUnlocked: row.user_id === selfUid ? true : Boolean(row.is_unlocked),
+  isUnlocked:
+    row.unlock_at && new Date(row.unlock_at) > new Date()
+      ? false
+      : row.user_id === selfUid
+        ? true
+        : Boolean(row.is_unlocked),
+  unlockAt: row.unlock_at ? new Date(row.unlock_at) : null,
   createdBy: {
     uid: row.user_id,
     email: "",
@@ -80,6 +86,9 @@ export const useMemories = () => {
       video_urls: memoryData.videoUrls ?? [],
       voice_message_url: memoryData.voiceMessageUrl ?? "",
       is_unlocked: memoryData.isUnlocked ?? false,
+      unlock_at: memoryData.unlockAt
+        ? new Date(memoryData.unlockAt).toISOString()
+        : null,
       created_by_username: profile?.username || user.email || "",
       created_by_photo_url: profile?.photoURL || "",
     };

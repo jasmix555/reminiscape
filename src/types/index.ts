@@ -13,13 +13,12 @@ export interface UserProfile {
   photoURL?: string;
   createdAt: Date;
   updatedAt: Date;
-  friends?: string[]; // Array of UIDs of the friends
-  friendRequests?: string[]; // Array of UIDs of the users who sent a friend request
+  friends?: string[];
+  friendRequests?: string[];
   requestSent?: boolean;
 }
 
-// App-normalized auth user (decoupled from any auth provider's user shape so
-// the rest of the app can keep using `user.uid`).
+// App-normalized auth user (decoupled from any auth provider's user shape).
 export interface AppUser {
   uid: string;
   email: string | null;
@@ -43,6 +42,7 @@ export interface Memory {
   updatedAt: Date;
   isUnlocked: boolean;
   isNearMarker?: boolean;
+  unlockAt?: Date | null; // time-lock: contents hidden until this date
 }
 
 export interface MemoryFeature {

@@ -29,6 +29,17 @@ const Spinner = () => (
   <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 );
 
+const fmtCountdown = (d: Date): string => {
+  const days = Math.ceil((d.getTime() - Date.now()) / 86400000);
+
+  if (days <= 0) return "Unlocking now";
+  if (days === 1) return "Unlocks tomorrow";
+  if (days < 31) return `Unlocks in ${days} days`;
+  const months = Math.round(days / 30);
+
+  return `Unlocks in ~${months} month${months > 1 ? "s" : ""}`;
+};
+
 const MarkerModal: React.FC<MarkerModalProps> = ({
   isOpen,
   onClose,
@@ -51,6 +62,9 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
 
   const isCurrentUserMemory = memory.createdBy.uid === user?.uid;
   const isMemoryUnlocked = memory.isUnlocked || isCurrentUserMemory;
+  const timeLocked = memory.unlockAt
+    ? new Date(memory.unlockAt) > new Date()
+    : false;
 
   const startEdit = () => {
     setUpdatedTitle(memory.title);
@@ -175,11 +189,26 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
         ) : (
           <div className="space-y-3">
             <h3 className="pr-10 text-lg font-bold">{memory.title}</h3>
-            {memory.notes && (
+            {!timeLocked && memory.notes && (
               <p className="text-sm text-ink-muted">{memory.notes}</p>
             )}
 
-            {!isMemoryUnlocked ? (
+            {timeLocked ? (
+              <div className="flex w-full flex-col items-center gap-1 rounded-xl border border-accent/30 bg-accent/10 p-4 text-center">
+                <FaLock className="text-accent" />
+                <p className="font-semibold text-ink">
+                  Sealed until{" "}
+                  {memory.unlockAt
+                    ? new Date(memory.unlockAt).toLocaleDateString()
+                    : ""}
+                </p>
+                <p className="text-sm text-ink-muted">
+                  {memory.unlockAt
+                    ? fmtCountdown(new Date(memory.unlockAt))
+                    : ""}
+                </p>
+              </div>
+            ) : !isMemoryUnlocked ? (
               !isNearMarker ? (
                 <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/15 p-3 text-center text-red-400">
                   <FaLock />
@@ -228,12 +257,14 @@ const MarkerModal: React.FC<MarkerModalProps> = ({
 
             {isCurrentUserMemory && (
               <div className="flex justify-between gap-3 pt-2 font-medium">
-                <button
-                  className="flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2.5 text-ink transition-colors hover:bg-white/15"
-                  onClick={startEdit}
-                >
-                  <HiPencil className="inline w-5 h-5" /> Edit
-                </button>
+                {!timeLocked && (
+                  <button
+                    className="flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2.5 text-ink transition-colors hover:bg-white/15"
+                    onClick={startEdit}
+                  >
+                    <HiPencil className="inline w-5 h-5" /> Edit
+                  </button>
+                )}
                 <button
                   className="flex items-center gap-1.5 rounded-xl border border-red-500/40 px-4 py-2.5 text-red-400 transition-colors hover:bg-red-500/15 disabled:opacity-50"
                   disabled={deleting}

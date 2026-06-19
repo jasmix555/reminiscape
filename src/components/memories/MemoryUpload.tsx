@@ -6,6 +6,7 @@ import {
   HiX,
   HiPhotograph,
   HiMicrophone,
+  HiLockClosed,
 } from "react-icons/hi";
 import { createPortal } from "react-dom";
 
@@ -38,12 +39,15 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
     setVoiceMessage,
     uploading,
     uploadProgress,
+    unlockAt,
+    setUnlockAt,
     dropzone,
     removeFile,
     handleVoiceChange,
     handleSubmit,
   } = useMemoryUpload(location, onUpload, onClose);
 
+  const today = new Date().toISOString().split("T")[0];
   const { getRootProps, getInputProps, isDragActive } = dropzone;
 
   const modalContent = (
@@ -54,7 +58,6 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
       }}
     >
       <div className="glass-strong thin-scroll animate-sheet-up max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl text-ink shadow-glass-lg sm:rounded-3xl">
-        {/* Grab handle (mobile sheet affordance) */}
         <div className="flex justify-center pt-3 sm:hidden">
           <div className="h-1.5 w-10 rounded-full bg-white/20" />
         </div>
@@ -80,7 +83,6 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Title */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-ink-muted">
                 Capsule Title
@@ -96,7 +98,6 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
               />
             </div>
 
-            {/* Location */}
             <div className="flex items-center space-x-3 rounded-xl border border-line bg-surface-raised p-4">
               <HiLocationMarker className="h-5 w-5 text-accent" />
               <div>
@@ -107,7 +108,6 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
               </div>
             </div>
 
-            {/* Upload dropzone */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-ink-muted">
                 Capsule Contents
@@ -133,14 +133,12 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
               </div>
             </div>
 
-            {/* Preview grid */}
             <MemoryFilePreview
               files={files}
               previewUrls={previewUrls}
               onRemove={removeFile}
             />
 
-            {/* Voice message */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-ink-muted">
                 <HiMicrophone className="h-4 w-4" />
@@ -172,7 +170,6 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
               </label>
             </div>
 
-            {/* Notes */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-ink-muted">
                 Message for the Future
@@ -187,7 +184,26 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
               />
             </div>
 
-            {/* Progress bar */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-ink-muted">
+                <HiLockClosed className="h-4 w-4" />
+                Lock until
+                <span className="font-normal text-ink-faint">(optional)</span>
+              </label>
+              <input
+                className="w-full rounded-xl border border-line bg-surface-raised px-4 py-3 text-ink outline-none transition-all [color-scheme:dark] focus:border-transparent focus:ring-2 focus:ring-accent"
+                min={today}
+                type="date"
+                value={unlockAt}
+                onChange={(e) => setUnlockAt(e.target.value)}
+              />
+              {unlockAt && (
+                <p className="text-xs text-ink-faint">
+                  Sealed until {unlockAt} — not even you can open it early.
+                </p>
+              )}
+            </div>
+
             {uploading && uploadProgress > 0 && (
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                 <div
@@ -197,7 +213,6 @@ const MemoryUpload: React.FC<MemoryUploadProps> = ({
               </div>
             )}
 
-            {/* Actions */}
             <div className="flex justify-between gap-3 pt-2">
               <button
                 className="rounded-xl bg-white/10 px-6 py-3 font-medium text-ink-muted transition-colors hover:bg-white/15 disabled:opacity-50"

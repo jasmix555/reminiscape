@@ -16,7 +16,6 @@ type OnUpload = (
   memoryData: Omit<Memory, "id" | "createdBy" | "createdAt" | "updatedAt">,
 ) => Promise<void>;
 
-/** All state + behaviour for the Create Time Capsule sheet. */
 export const useMemoryUpload = (
   location: { latitude: number; longitude: number },
   onUpload: OnUpload,
@@ -30,14 +29,13 @@ export const useMemoryUpload = (
   const [voiceMessage, setVoiceMessage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [unlockAt, setUnlockAt] = useState<string>("");
 
-  // Revoke object URLs on unmount.
   useEffect(
     () => () => previewUrls.forEach((url) => URL.revokeObjectURL(url)),
     [previewUrls],
   );
 
-  // Close on Escape (unless mid-upload, to avoid orphaned uploads).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !uploading) onClose();
@@ -155,18 +153,9 @@ export const useMemoryUpload = (
 
     try {
       setUploading(true);
-      console.log("[seal] 1/3 uploading media...", {
-        files: files.length,
-        voice: Boolean(voiceMessage),
-      });
       const { imageUrls, videoUrls, voiceMessageUrl } =
         await uploadMemoryAssets(files, voiceMessage, setUploadProgress);
 
-      console.log("[seal] 2/3 media uploaded, saving memory...", {
-        imageUrls,
-        videoUrls,
-        voiceMessageUrl,
-      });
       await onUpload({
         title: title.trim(),
         description: "",
@@ -176,9 +165,9 @@ export const useMemoryUpload = (
         voiceMessageUrl,
         notes: notes.trim(),
         isUnlocked: false,
+        unlockAt: unlockAt ? new Date(unlockAt) : null,
       });
 
-      console.log("[seal] 3/3 memory saved — done.");
       toast.success("Time capsule sealed!");
       onClose();
     } catch (error) {
@@ -205,6 +194,8 @@ export const useMemoryUpload = (
     setVoiceMessage,
     uploading,
     uploadProgress,
+    unlockAt,
+    setUnlockAt,
     dropzone,
     removeFile,
     handleVoiceChange,
