@@ -17,9 +17,9 @@
 -- column error appears, add/remove the offending column in section 1.
 -- ============================================================================
 
--- Owner account these dummies revolve around. It is hardcoded as
--- 'ng-j@dentsupromotion.co.jp' in the blocks below — find/replace it if you
--- want to seed for a different signed-up account.
+-- Owner account these dummies revolve around, referenced by UID below
+-- (8e562b39-9767-49bd-8450-8ea53358906b = jasmix555@gmail.com). Replace that
+-- UID everywhere if you want to seed for a different signed-up account.
 create extension if not exists pgcrypto;
 
 -- ----------------------------------------------------------------------------
@@ -88,9 +88,9 @@ declare
   pending_ids uuid[];
   n int;
 begin
-  select id into me from auth.users where email = 'ng-j@dentsupromotion.co.jp';
-  if me is null then
-    raise notice 'Owner account not found — skipping friend links. Sign up first, then re-run.';
+  me := '8e562b39-9767-49bd-8450-8ea53358906b'::uuid;  -- jasmix555@gmail.com
+  if not exists (select 1 from public.profiles where id = me) then
+    raise notice 'Owner profile not found — skipping friend links. Sign in once, then re-run.';
     return;
   end if;
 
@@ -231,7 +231,7 @@ from public.profiles p,
     (4,'Note to future me','Open this next spring.',34.6937,135.5023, now() + interval '4 months', now() - interval '5 days'),
     (5,'Nara deer park','They bowed for crackers.',34.6851,135.8048, null, now() - interval '90 days')
   ) as v(idx, title, notes, lat, lng, unlock_at, created_at)
-where p.email = 'ng-j@dentsupromotion.co.jp'
+where p.id = '8e562b39-9767-49bd-8450-8ea53358906b'::uuid  -- jasmix555@gmail.com
 on conflict (id) do nothing;
 
 -- ----------------------------------------------------------------------------
@@ -240,7 +240,7 @@ on conflict (id) do nothing;
 insert into public.memory_unlocks (user_id, memory_id)
 select me.id, m.id
 from public.memories m
-cross join (select id from auth.users where email = 'ng-j@dentsupromotion.co.jp') me
+cross join (select '8e562b39-9767-49bd-8450-8ea53358906b'::uuid as id) me  -- jasmix555@gmail.com
 where m.user_id <> me.id
   and m.unlock_at is null                                            -- not sealed
   and (get_byte(decode(md5(m.id::text), 'hex'), 0) % 4) <> 0          -- ~75%
