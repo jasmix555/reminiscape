@@ -107,7 +107,8 @@ export default function MemoriesPage() {
   if (loading) return <Loading />;
 
   const now = new Date();
-  const sealed = rows.filter((r) => r.unlock_at && new Date(r.unlock_at) > now);
+  const isSealed = (r: Row) => !!r.unlock_at && new Date(r.unlock_at) > now;
+
   const justUnlocked = rows.filter(
     (r) =>
       r.unlock_at &&
@@ -124,9 +125,6 @@ export default function MemoriesPage() {
     );
   });
 
-  const empty =
-    sealed.length === 0 && justUnlocked.length === 0 && onThisDay.length === 0;
-
   return (
     <div className="min-h-screen bg-background text-ink">
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 pb-16 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -137,45 +135,45 @@ export default function MemoriesPage() {
           <h1 className="text-2xl font-bold tracking-tight">Memories</h1>
         </div>
 
-        {empty && (
+        {rows.length === 0 ? (
           <div className="glass mt-6 flex flex-col items-center gap-2 rounded-3xl p-8 text-center">
             <FaRegClock className="h-8 w-8 text-ink-faint" />
-            <p className="font-medium text-ink">Nothing resurfaced yet</p>
+            <p className="font-medium text-ink">No capsules yet</p>
             <p className="text-sm text-ink-faint">
-              Seal time capsules and revisit places — your memories will appear
-              here on their anniversaries and when they unlock.
+              Create your first time capsule on the map — it&apos;ll show up
+              here, and resurface on its anniversaries.
             </p>
           </div>
-        )}
+        ) : (
+          <>
+            {onThisDay.length > 0 && (
+              <Section title="On this day">
+                <div className="space-y-2">
+                  {onThisDay.map((r) => (
+                    <MemoryCard key={r.id} row={r} sealed={isSealed(r)} />
+                  ))}
+                </div>
+              </Section>
+            )}
 
-        {onThisDay.length > 0 && (
-          <Section title="On this day">
-            <div className="space-y-2">
-              {onThisDay.map((r) => (
-                <MemoryCard key={r.id} row={r} />
-              ))}
-            </div>
-          </Section>
-        )}
+            {justUnlocked.length > 0 && (
+              <Section title="Recently unlocked">
+                <div className="space-y-2">
+                  {justUnlocked.map((r) => (
+                    <MemoryCard key={r.id} row={r} />
+                  ))}
+                </div>
+              </Section>
+            )}
 
-        {justUnlocked.length > 0 && (
-          <Section title="Recently unlocked">
-            <div className="space-y-2">
-              {justUnlocked.map((r) => (
-                <MemoryCard key={r.id} row={r} />
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {sealed.length > 0 && (
-          <Section title="Sealed capsules">
-            <div className="space-y-2">
-              {sealed.map((r) => (
-                <MemoryCard key={r.id} sealed row={r} />
-              ))}
-            </div>
-          </Section>
+            <Section title="All capsules">
+              <div className="space-y-2">
+                {rows.map((r) => (
+                  <MemoryCard key={r.id} row={r} sealed={isSealed(r)} />
+                ))}
+              </div>
+            </Section>
+          </>
         )}
       </div>
     </div>
