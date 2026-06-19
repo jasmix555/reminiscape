@@ -1,5 +1,5 @@
 // src/app/layout.tsx
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { ReactNode } from "react";
 
@@ -12,6 +12,15 @@ export const metadata: Metadata = {
   description: "Unlock the Past, Treasure the Present",
 };
 
+// Dark browser chrome (Safari toolbar / status bar) + edge-to-edge safe areas,
+// so no light/white band shows around the app on iOS.
+export const viewport: Viewport = {
+  themeColor: "#18181b",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -19,18 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <link
-          as="style"
-          href="/_next/static/css/app/layout.css"
-          precedence="high"
-          rel="stylesheet"
-        />
-      </head>
-      <body
-        suppressHydrationWarning
-        className="min-h-screen bg-noise-pattern bg-cover bg-fixed bg-center"
-      >
+      <body suppressHydrationWarning className="min-h-screen bg-background">
         <AuthCheck />
         <ToasterProvider />
         {children}

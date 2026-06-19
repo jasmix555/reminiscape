@@ -128,7 +128,7 @@ const MapComponent: React.FC = () => {
           onZoomOut={() => mapRef.current?.getMap()?.zoomOut()}
         />
 
-        {userLocation && (
+        {userLocation && viewState.zoom >= 11 && (
           <>
             <UserRadius
               latitude={userLocation.latitude}
@@ -144,7 +144,7 @@ const MapComponent: React.FC = () => {
         <GeolocateControl
           ref={geolocateControlRef}
           positionOptions={{ enableHighAccuracy: true }}
-          showUserLocation={true}
+          showUserLocation={false}
           trackUserLocation={true}
           onError={(error) => {
             console.warn("Geolocation unavailable:", error?.message);
