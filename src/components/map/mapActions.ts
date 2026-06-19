@@ -11,9 +11,6 @@ export const RADIUS = 100; // Define proximity radius in meters
 export const handleGeolocate = (
   position: GeolocationPosition,
   setUserLocation: (location: { longitude: number; latitude: number }) => void,
-  setIsFollowingUser: (isFollowing: boolean) => void,
-  setViewState: (prev: any) => void,
-  mapRef: any,
 ) => {
   if (!position.coords) {
     toast.error("Unable to retrieve location.");
@@ -21,38 +18,13 @@ export const handleGeolocate = (
     return;
   }
 
-  const newLocation = {
+  // Only update the tracked location. The camera is centred ONCE on first fix
+  // (see Map.tsx) and otherwise left alone, so the map never auto-zooms while
+  // the user is browsing.
+  setUserLocation({
     longitude: position.coords.longitude,
     latitude: position.coords.latitude,
-  };
-
-  setUserLocation(newLocation);
-  setIsFollowingUser(true);
-
-  setViewState((prev: any) => ({
-    ...prev,
-    longitude: newLocation.longitude,
-    latitude: newLocation.latitude,
-  }));
-
-  setTimeout(() => {
-    if (mapRef.current) {
-      const map = mapRef.current.getMap();
-
-      if (map) {
-        const currentZoom = map.getZoom();
-
-        map.flyTo({
-          center: [newLocation.longitude, newLocation.latitude],
-          zoom: Math.min(currentZoom + 2, 16.45), // ✅ Prevent excessive zoom-in
-          pitch: 45,
-          bearing: 0,
-          essential: true,
-          duration: 1500,
-        });
-      }
-    }
-  }, 1000);
+  });
 };
 
 export const handleMapMove = (

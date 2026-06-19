@@ -19,6 +19,7 @@ import MapLayers from "./MapLayers";
 import MapControls from "./MapControls";
 import MapMarkers from "./MapMarkers";
 import UserLocationMarker from "./UserLocationMarker";
+import UserRadius from "./UserRadius";
 import LocationDeniedBanner from "./LocationDeniedBanner";
 import CreateMemoryButton from "./CreateMemoryButton";
 import MapLoadingVeil from "./MapLoadingVeil";
@@ -128,10 +129,16 @@ const MapComponent: React.FC = () => {
         />
 
         {userLocation && (
-          <UserLocationMarker
-            latitude={userLocation.latitude}
-            longitude={userLocation.longitude}
-          />
+          <>
+            <UserRadius
+              latitude={userLocation.latitude}
+              longitude={userLocation.longitude}
+            />
+            <UserLocationMarker
+              latitude={userLocation.latitude}
+              longitude={userLocation.longitude}
+            />
+          </>
         )}
 
         <GeolocateControl
@@ -143,15 +150,7 @@ const MapComponent: React.FC = () => {
             console.warn("Geolocation unavailable:", error?.message);
             setUserLocation(null);
           }}
-          onGeolocate={(position) => {
-            handleGeolocate(
-              position,
-              setUserLocation,
-              () => {},
-              setViewState,
-              mapRef,
-            );
-          }}
+          onGeolocate={(position) => handleGeolocate(position, setUserLocation)}
         />
 
         <MapMarkers
