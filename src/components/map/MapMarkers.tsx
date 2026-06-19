@@ -1,7 +1,7 @@
 import React from "react";
 import { Marker } from "react-map-gl";
 import Image from "next/image";
-import { HiLocationMarker, HiLockClosed } from "react-icons/hi";
+import { HiLocationMarker } from "react-icons/hi";
 import { getDistance } from "geolib";
 
 import { RADIUS } from "./mapActions";
@@ -83,7 +83,7 @@ const MapMarkers: React.FC<MapMarkersProps> = ({
                 className={`w-11 h-11 rounded-full flex items-center justify-center shadow-glass border-2 ${
                   isUnlocked
                     ? "border-accent bg-surface"
-                    : "glass border-white/20"
+                    : "glass border-accent/40"
                 }`}
               >
                 {isUnlocked ? (
@@ -99,7 +99,7 @@ const MapMarkers: React.FC<MapMarkersProps> = ({
                     <HiLocationMarker className="w-6 h-6 text-accent" />
                   )
                 ) : (
-                  <HiLockClosed className="w-5 h-5 text-ink-muted" />
+                  <span className="text-lg font-bold text-accent">?</span>
                 )}
               </div>
             </div>
