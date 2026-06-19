@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.supabase.co" },
       // Google account avatars (Supabase Google OAuth)
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      // Placeholder photos for demo/seed capsules
+      { protocol: "https", hostname: "picsum.photos" },
     ],
   },
   async headers() {
