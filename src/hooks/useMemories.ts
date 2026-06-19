@@ -7,7 +7,11 @@ import { supabase } from "@/libs/supabaseClient";
 import { deleteMediaByUrl } from "@/libs/supabaseStorage";
 import { Memory, UserProfile } from "@/types";
 
-const mapRow = (row: Record<string, any>, selfUid: string): Memory => ({
+const mapRow = (
+  row: Record<string, any>,
+  selfUid: string,
+  unlockedSet: Set<string>,
+): Memory => ({
   id: row.id,
   title: row.title,
   description: row.description ?? "",
@@ -21,7 +25,7 @@ const mapRow = (row: Record<string, any>, selfUid: string): Memory => ({
       ? false
       : row.user_id === selfUid
         ? true
-        : Boolean(row.is_unlocked),
+        : Boolean(row.is_unlocked) || unlockedSet.has(row.id),
   unlockAt: row.unlock_at ? new Date(row.unlock_at) : null,
   createdBy: {
     uid: row.user_id,
@@ -57,8 +61,19 @@ export const useMemories = () => {
 
       if (error) throw error;
 
+      // Which capsules has this user already unlocked (persisted)?
+      const { data: unlocks } = await supabase
+        .from("memory_unlocks")
+        .select("memory_id")
+        .eq("user_id", user.uid);
+      const unlockedSet = new Set(
+        (unlocks ?? []).map((u: { memory_id: string }) => u.memory_id),
+      );
+
       setMemories(
-        (data ?? []).map((r: Record<string, any>) => mapRow(r, user.uid)),
+        (data ?? []).map((r: Record<string, any>) =>
+          mapRow(r, user.uid, unlockedSet),
+        ),
       );
       setError(null);
     } catch (err: any) {
@@ -69,6 +84,26 @@ export const useMemories = () => {
       setLoading(false);
     }
   }, [user]);
+
+  // Persist that the current user has unlocked someone else's capsule.
+  const recordUnlock = async (memoryId: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("memory_unlocks")
+      .upsert(
+        { user_id: user.uid, memory_id: memoryId },
+        { onConflict: "user_id,memory_id" },
+      );
+
+    if (error) {
+      console.error("Error recording unlock:", error.message);
+
+      return;
+    }
+
+    await loadMemories();
+  };
 
   const addMemory = async (
     memoryData: Omit<Memory, "id" | "createdBy" | "createdAt" | "updatedAt">,
@@ -201,5 +236,6 @@ export const useMemories = () => {
     updateMemory,
     deleteMemory,
     refreshMemories,
+    recordUnlock,
   };
 };

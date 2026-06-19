@@ -35,7 +35,8 @@ const mapStyles = { touchAction: "none", width: "100%", height: "100%" };
 
 const MapComponent: React.FC = () => {
   const { user, profile } = useAuth();
-  const { memories, loading, addMemory, refreshMemories } = useMemories();
+  const { memories, loading, addMemory, refreshMemories, recordUnlock } =
+    useMemories();
 
   const [viewState, setViewState] = useState({
     longitude: 135.5023, // Osaka
@@ -186,7 +187,10 @@ const MapComponent: React.FC = () => {
           memory={selectedMemory}
           user={user ? { uid: user.uid } : undefined}
           onClose={() => setIsModalOpen(false)}
-          onUnlock={() => unlockMemory(selectedMemory, setSelectedMemory)}
+          onUnlock={() => {
+            unlockMemory(selectedMemory, setSelectedMemory);
+            if (selectedMemory) recordUnlock(selectedMemory.id);
+          }}
         />
       </Map>
 
