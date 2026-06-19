@@ -2,21 +2,38 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { HiLocationMarker } from "react-icons/hi";
+import toast from "react-hot-toast";
 
 import { useAuth } from "@/hooks";
+import { signInAsDemo } from "@/libs";
 import { Loading } from "@/components";
 
 export default function Welcome() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [demoLoading, setDemoLoading] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
       router.push("/");
     }
   }, [loading, user, router]);
+
+  const handleDemo = async () => {
+    setDemoLoading(true);
+    const { error } = await signInAsDemo();
+
+    if (error) {
+      console.error(error);
+      toast.error("Couldn't start the demo. Please try again.");
+      setDemoLoading(false);
+
+      return;
+    }
+    router.push("/");
+  };
 
   if (loading) return <Loading />;
   if (user) return null;
@@ -67,6 +84,14 @@ export default function Welcome() {
             >
               Create account
             </Link>
+            <button
+              className="pt-1 text-center text-sm font-medium text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline disabled:opacity-50"
+              disabled={demoLoading}
+              type="button"
+              onClick={handleDemo}
+            >
+              {demoLoading ? "Starting demo…" : "Explore the demo →"}
+            </button>
           </div>
         </div>
       </div>

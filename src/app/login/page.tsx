@@ -9,6 +9,7 @@ import Image from "next/image";
 
 import { useAuth } from "@/hooks";
 import { supabase } from "@/libs/supabaseClient";
+import { signInAsDemo } from "@/libs";
 import { Loading } from "@/components";
 
 export default function Login() {
@@ -19,6 +20,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
+  const [isDemoLoading, setIsDemoLoading] = useState<boolean>(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -69,7 +71,23 @@ export default function Login() {
     }
   };
 
-  const busy = isSubmitting || isGoogleLoading;
+  const handleDemoSignIn = async () => {
+    setError(null);
+    setIsDemoLoading(true);
+    const { error } = await signInAsDemo();
+
+    if (error) {
+      console.error(error);
+      setError("Couldn't start the demo. Please try again.");
+      setIsDemoLoading(false);
+
+      return;
+    }
+
+    router.push("/");
+  };
+
+  const busy = isSubmitting || isGoogleLoading || isDemoLoading;
   const inputClass = `w-full rounded-xl border bg-surface-raised px-4 py-3 text-ink placeholder-ink-faint outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-accent ${
     error ? "border-red-500/60" : "border-line"
   }`;
@@ -184,6 +202,25 @@ export default function Login() {
                 <Image alt="Google" height={20} src="/google.svg" width={20} />
                 <span>Sign in with Google</span>
               </>
+            )}
+          </button>
+
+          <button
+            aria-label="Explore the demo account"
+            className={`flex w-full items-center justify-center gap-2 rounded-full border border-line py-3 font-semibold text-ink transition ${
+              busy ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
+            }`}
+            disabled={busy}
+            type="button"
+            onClick={handleDemoSignIn}
+          >
+            {isDemoLoading ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Starting demo...
+              </>
+            ) : (
+              "Explore the demo account"
             )}
           </button>
 

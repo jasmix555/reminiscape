@@ -9,12 +9,20 @@
 -- owner's friends / friend_requests arrays (arrays aren't foreign keys).
 -- ============================================================================
 
--- 1) Remove dummy users (cascades through profiles and all their content).
-delete from auth.users where email like 'demo+%@reminiscape.app';
+-- 1) Remove dummy users AND the public demo account (cascades through their
+--    profiles and all their content: capsules, reactions, comments, unlocks).
+delete from auth.users
+where email like 'demo+%@reminiscape.app'
+   or email = 'demo@reminiscape.app';
 
--- 2) Remove the owner's seeded demo capsules (fixed 2000... id prefix).
+-- 2) Remove the real owner's seeded "own" capsules (deterministic md5 ids).
+--    Only these 5 are removed — the owner's genuine capsules are untouched.
 delete from public.memories
-where id::text like '20000000-0000-0000-0000-%';
+where id in (
+  select md5(o || 'me' || g::text)::uuid
+  from unnest(array['8e562b39-9767-49bd-8450-8ea53358906b']) as o,
+       generate_series(1, 5) as g
+);
 
 -- 3) Prune friend/request arrays that point at now-deleted profiles.
 update public.profiles p set

@@ -5,10 +5,11 @@
 -- so re-running won't duplicate. Remove everything later with
 -- sql/seed_demo_teardown.sql.
 --
--- It creates 16 dummy users, befriends them to the owner account below
--- (14 mutual friends + 2 pending friend requests), scatters ~70 capsules
--- across Japan (dense around Osaka & Kobe) with placeholder photos, adds a few
--- of the owner's own
+-- It creates 16 dummy users + a public demo account (demo@reminiscape.app,
+-- password demo-password-123), befriends the dummies to BOTH your account and
+-- the demo account (14 mutual friends + 2 pending requests each), scatters ~70
+-- capsules across Japan (dense around Osaka & Kobe) with placeholder photos,
+-- adds each owner's own
 -- capsules (incl. "On this day"), and seeds reactions + comments. Unlock state
 -- is mixed: most pre-unlocked for the owner, some proximity-locked, a few
 -- time-sealed.
@@ -44,7 +45,8 @@ declare
     {"id":"d0000000-0000-4000-8000-000000000013","email":"demo+chloe@reminiscape.app","username":"chloe_nguyen","photo":"https://i.pravatar.cc/150?img=44","bio":"Collecting skylines."},
     {"id":"d0000000-0000-4000-8000-000000000014","email":"demo+arjun@reminiscape.app","username":"arjun_patel","photo":"https://i.pravatar.cc/150?img=68","bio":"Trains, temples, tea."},
     {"id":"d0000000-0000-4000-8000-000000000015","email":"demo+hana@reminiscape.app","username":"hana_park","photo":"https://i.pravatar.cc/150?img=47","bio":"New here, say hi!"},
-    {"id":"d0000000-0000-4000-8000-000000000016","email":"demo+ethan@reminiscape.app","username":"ethan_clark","photo":"https://i.pravatar.cc/150?img=59","bio":"Long walks, longer flights."}
+    {"id":"d0000000-0000-4000-8000-000000000016","email":"demo+ethan@reminiscape.app","username":"ethan_clark","photo":"https://i.pravatar.cc/150?img=59","bio":"Long walks, longer flights."},
+    {"id":"d0000000-0000-4000-8000-0000000000de","email":"demo@reminiscape.app","username":"demo_explorer","photo":"https://i.pravatar.cc/150?img=13","bio":"Tap around — this whole account is a live demo."}
   ]';
 begin
   for rec in
@@ -77,23 +79,22 @@ end $$;
 -- ----------------------------------------------------------------------------
 -- 2) Friendships
 --    - all 16 dummies are mutual friends with each other (rich social world)
---    - 14 are mutual friends with the owner; the last 2 send the owner a
---      pending friend request instead (to populate the Requests tab)
+--    - each OWNER account (your real account + the public demo account) gets
+--      14 mutual friends; the last 2 dummies send a pending friend request
+--      instead (to populate the Requests tab)
 -- ----------------------------------------------------------------------------
 do $$
 declare
-  me uuid;
+  owners uuid[] := array[
+    '8e562b39-9767-49bd-8450-8ea53358906b'::uuid,  -- jasmix555@gmail.com (your account)
+    'd0000000-0000-4000-8000-0000000000de'::uuid   -- demo@reminiscape.app (public demo)
+  ];
+  o uuid;
   all_ids uuid[];
   friend_ids uuid[];
   pending_ids uuid[];
   n int;
 begin
-  me := '8e562b39-9767-49bd-8450-8ea53358906b'::uuid;  -- jasmix555@gmail.com
-  if not exists (select 1 from public.profiles where id = me) then
-    raise notice 'Owner profile not found — skipping friend links. Sign in once, then re-run.';
-    return;
-  end if;
-
   all_ids := array(
     select id from public.profiles
     where email like 'demo+%@reminiscape.app'
@@ -112,19 +113,26 @@ begin
     )
   where p.id = any(all_ids);
 
-  -- mutual friends with owner
-  update public.profiles
-    set friends = array(select distinct unnest(coalesce(friends, '{}') || friend_ids))
-  where id = me;
+  foreach o in array owners loop
+    if not exists (select 1 from public.profiles where id = o) then
+      raise notice 'Owner % not found — skipping its friend links. Sign in once, then re-run.', o;
+      continue;
+    end if;
 
-  update public.profiles p
-    set friends = array(select distinct unnest(coalesce(p.friends, '{}') || array[me]))
-  where p.id = any(friend_ids);
+    -- owner befriends the first 14 dummies (mutual)
+    update public.profiles
+      set friends = array(select distinct unnest(coalesce(friends, '{}') || friend_ids))
+    where id = o;
 
-  -- pending requests TO the owner from the last 2 dummies
-  update public.profiles
-    set friend_requests = array(select distinct unnest(coalesce(friend_requests, '{}') || pending_ids))
-  where id = me;
+    update public.profiles p
+      set friends = array(select distinct unnest(coalesce(p.friends, '{}') || array[o]))
+    where p.id = any(friend_ids);
+
+    -- last 2 dummies send the owner a pending friend request
+    update public.profiles
+      set friend_requests = array(select distinct unnest(coalesce(friend_requests, '{}') || pending_ids))
+    where id = o;
+  end loop;
 end $$;
 
 -- ----------------------------------------------------------------------------
@@ -210,7 +218,8 @@ from caps
 on conflict (id) do nothing;
 
 -- ----------------------------------------------------------------------------
--- 4) A few of the OWNER's own capsules (incl. two "On this day")
+-- 4) Each OWNER's own capsules (incl. two "On this day"), for your account AND
+--    the public demo account. Deterministic md5 ids keep this idempotent.
 -- ----------------------------------------------------------------------------
 insert into public.memories (
   id, user_id, title, notes, description, latitude, longitude,
@@ -218,32 +227,42 @@ insert into public.memories (
   created_by_username, created_by_photo_url, unlock_at, created_at
 )
 select
-  ('20000000-0000-0000-0000-0000000000' || lpad(v.idx::text, 2, '0'))::uuid,
+  md5(p.id::text || 'me' || v.idx::text)::uuid,
   p.id, v.title, v.notes, '', v.lat, v.lng,
-  array['https://picsum.photos/seed/reminiscape-me' || v.idx || '/800/600'],
+  array['https://picsum.photos/seed/reminiscape-' || substr(p.id::text, 1, 8) || '-' || v.idx || '/800/600'],
   '{}', '', true,
   coalesce(p.username, 'me'), coalesce(p.photo_url, ''), v.unlock_at, v.created_at
-from public.profiles p,
-  (values
+from public.profiles p
+cross join (values
     (1,'Morning in Osaka','Home. Dotonbori lights.',34.6687,135.5030, null::timestamptz, now() - interval '1 year'),
     (2,'Kyoto in autumn','That red-maple year.',35.0116,135.7681, null, now() - interval '3 years'),
     (3,'Okinawa blue','Bluest water I have ever seen.',26.3344,127.8056, null, now() - interval '40 days'),
     (4,'Note to future me','Open this next spring.',34.6937,135.5023, now() + interval '4 months', now() - interval '5 days'),
     (5,'Nara deer park','They bowed for crackers.',34.6851,135.8048, null, now() - interval '90 days')
   ) as v(idx, title, notes, lat, lng, unlock_at, created_at)
-where p.id = '8e562b39-9767-49bd-8450-8ea53358906b'::uuid  -- jasmix555@gmail.com
+where p.id in (
+  '8e562b39-9767-49bd-8450-8ea53358906b'::uuid,  -- jasmix555@gmail.com
+  'd0000000-0000-4000-8000-0000000000de'::uuid   -- demo@reminiscape.app
+)
 on conflict (id) do nothing;
 
 -- ----------------------------------------------------------------------------
--- 5) Unlock ledger — owner "discovers" ~75% of friends' (non-sealed) capsules
+-- 5) Unlock ledger — each owner "discovers" ~75% of others' (non-sealed)
+--    capsules. Runs for both your account and the public demo account.
 -- ----------------------------------------------------------------------------
 insert into public.memory_unlocks (user_id, memory_id)
-select me.id, m.id
+select o.id, m.id
 from public.memories m
-cross join (select '8e562b39-9767-49bd-8450-8ea53358906b'::uuid as id) me  -- jasmix555@gmail.com
-where m.user_id <> me.id
+cross join (
+  select unnest(array[
+    '8e562b39-9767-49bd-8450-8ea53358906b'::uuid,  -- jasmix555@gmail.com
+    'd0000000-0000-4000-8000-0000000000de'::uuid   -- demo@reminiscape.app
+  ]) as id
+) o
+join public.profiles p on p.id = o.id                                -- only existing owners
+where m.user_id <> o.id
   and m.unlock_at is null                                            -- not sealed
-  and (get_byte(decode(md5(m.id::text), 'hex'), 0) % 4) <> 0          -- ~75%
+  and (get_byte(decode(md5(m.id::text || o.id::text), 'hex'), 0) % 4) <> 0  -- ~75%
 on conflict do nothing;
 
 -- ----------------------------------------------------------------------------
