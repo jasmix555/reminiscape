@@ -25,6 +25,7 @@ import CreateMemoryButton from "./CreateMemoryButton";
 import MapLoadingVeil from "./MapLoadingVeil";
 import { useClusters } from "./useClusters";
 
+import { setMapMoving, useMapMoving } from "@/libs/mapMotion";
 import { Memory } from "@/types";
 import { useAuth, useMemories } from "@/hooks";
 
@@ -65,6 +66,7 @@ const MapComponent: React.FC = () => {
     mapRef,
     viewState.zoom,
   );
+  const moving = useMapMoving();
 
   // Auto-center once on the first location fix.
   useEffect(() => {
@@ -118,10 +120,13 @@ const MapComponent: React.FC = () => {
           handleMapMove(evt, setViewState, userLocation, () => {});
           recompute();
         }}
+        onMoveEnd={() => setMapMoving(false)}
+        onMoveStart={() => setMapMoving(true)}
       >
         {isMapLoaded && <MapLayers mapRef={mapRef} />}
 
         <MapControls
+          hidden={moving}
           onLocate={() =>
             handleLocateClick(userLocation, () => {}, mapRef, setHasMovedToUser)
           }
@@ -194,9 +199,10 @@ const MapComponent: React.FC = () => {
         />
       </Map>
 
-      {!userLocation && <LocationDeniedBanner />}
+      {!userLocation && <LocationDeniedBanner hidden={moving} />}
 
       <CreateMemoryButton
+        hidden={moving}
         onClick={() =>
           handleCreateMemory(user, profile, userLocation, setShowUploadModal)
         }

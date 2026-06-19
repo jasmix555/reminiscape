@@ -4,10 +4,20 @@ interface MapControlsProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onLocate: () => void;
+  hidden?: boolean;
 }
 
-const MapControls = ({ onZoomIn, onZoomOut, onLocate }: MapControlsProps) => (
-  <div className="absolute right-4 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-2">
+const MapControls = ({
+  onZoomIn,
+  onZoomOut,
+  onLocate,
+  hidden,
+}: MapControlsProps) => (
+  <div
+    className={`absolute right-4 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-2 transition-all duration-300 ${
+      hidden ? "pointer-events-none translate-x-24 opacity-0" : "opacity-100"
+    }`}
+  >
     <button
       aria-label="Zoom in"
       className="ctrl-btn h-10 w-10"

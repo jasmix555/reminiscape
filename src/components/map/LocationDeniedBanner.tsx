@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { MdLocationOff } from "react-icons/md";
 
-// Shown when location is unavailable; toggles a small explanatory note.
-const LocationDeniedBanner = () => {
+const LocationDeniedBanner = ({ hidden }: { hidden?: boolean }) => {
   const [show, setShow] = useState(false);
 
   return (
-    <div className="absolute left-4 top-20 z-20 flex flex-col items-start gap-2">
+    <div
+      className={`absolute left-4 top-20 z-20 flex flex-col items-start gap-2 transition-all duration-300 ${
+        hidden ? "pointer-events-none -translate-x-24 opacity-0" : "opacity-100"
+      }`}
+    >
       <button
         aria-label="Location not connected"
         className="ctrl-btn h-10 w-10 ring-1 ring-red-500/50"

@@ -304,7 +304,6 @@ export default function MemoriesPage() {
         )}
       </div>
 
-      {/* Friend drill-in */}
       {openFriend && (
         <div
           className="fixed inset-0 z-40 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in sm:items-center sm:p-4"
@@ -343,7 +342,6 @@ export default function MemoriesPage() {
         </div>
       )}
 
-      {/* Capsule detail */}
       {selected && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in"

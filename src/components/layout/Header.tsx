@@ -16,6 +16,7 @@ import {
 
 import Avatar from "../ui/Avatar";
 
+import { useMapMoving } from "@/libs/mapMotion";
 import { useAuth } from "@/hooks";
 import { supabase } from "@/libs/supabaseClient";
 
@@ -32,6 +33,7 @@ const Header = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const moving = useMapMoving();
 
   if (loading) return null;
 
@@ -50,7 +52,11 @@ const Header = () => {
 
   return (
     <>
-      <header className="pointer-events-none fixed inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <header
+        className={`pointer-events-none fixed inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] transition-all duration-300 ${
+          moving ? "-translate-y-24 opacity-0" : "opacity-100"
+        }`}
+      >
         <button
           aria-label="Open menu"
           className="ctrl-btn pointer-events-auto h-11 w-11 overflow-hidden p-0"
