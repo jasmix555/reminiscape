@@ -155,9 +155,18 @@ export const useMemoryUpload = (
 
     try {
       setUploading(true);
+      console.log("[seal] 1/3 uploading media...", {
+        files: files.length,
+        voice: Boolean(voiceMessage),
+      });
       const { imageUrls, videoUrls, voiceMessageUrl } =
         await uploadMemoryAssets(files, voiceMessage, setUploadProgress);
 
+      console.log("[seal] 2/3 media uploaded, saving memory...", {
+        imageUrls,
+        videoUrls,
+        voiceMessageUrl,
+      });
       await onUpload({
         title: title.trim(),
         description: "",
@@ -169,6 +178,7 @@ export const useMemoryUpload = (
         isUnlocked: false,
       });
 
+      console.log("[seal] 3/3 memory saved — done.");
       toast.success("Time capsule sealed!");
       onClose();
     } catch (error) {

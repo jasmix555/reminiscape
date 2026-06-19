@@ -5,6 +5,7 @@ import { ReactNode } from "react";
 
 import "./globals.css";
 import AuthCheck from "@/components/layout/AuthCheck";
+import ToasterProvider from "@/components/ui/ToasterProvider";
 
 export const metadata: Metadata = {
   title: "Reminiscape",
@@ -31,6 +32,7 @@ export default function RootLayout({
         className="min-h-screen bg-noise-pattern bg-cover bg-fixed bg-center"
       >
         <AuthCheck />
+        <ToasterProvider />
         {children}
       </body>
     </html>
