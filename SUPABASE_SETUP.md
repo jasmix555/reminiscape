@@ -192,3 +192,12 @@ flat text comments, visible to the capsule's creator and everyone who has
 unlocked it. Run the migration in `sql/interactions.sql` (Supabase → SQL Editor).
 It is idempotent and also ensures the `memory_unlocks` table and `unlock_at`
 column exist, since the reaction/comment policies depend on them.
+
+## 7. Realtime interactions
+
+Reactions and comments update live while a capsule is open. Run
+`sql/realtime.sql` (Supabase → SQL Editor) to add the two tables to the
+`supabase_realtime` publication and set `REPLICA IDENTITY FULL` so delete events
+carry `memory_id` for client-side filtering. RLS still applies, so users only
+receive events for rows they can read. (Realtime is enabled by default on
+Supabase projects; no dashboard toggle needed.)

@@ -47,7 +47,33 @@ export const useMemoryInteractions = (memoryId: string | null) => {
   const [comments, setComments] = useState<MemoryComment[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async () => {
+  const selfUid = user?.uid ?? null;
+
+  const loadReactions = useCallback(async () => {
+    if (!memoryId) return;
+
+    const { data } = await supabase
+      .from("memory_reactions")
+      .select("user_id, emoji")
+      .eq("memory_id", memoryId);
+
+    setReactions(summarize(data ?? [], selfUid));
+  }, [memoryId, selfUid]);
+
+  const loadComments = useCallback(async () => {
+    if (!memoryId) return;
+
+    const { data } = await supabase
+      .from("memory_comments")
+      .select("*")
+      .eq("memory_id", memoryId)
+      .order("created_at", { ascending: true });
+
+    setComments((data ?? []).map(mapComment));
+  }, [memoryId]);
+
+  // Initial load whenever the open memory changes.
+  useEffect(() => {
     if (!memoryId) {
       setReactions(emptyReactions());
       setComments([]);
@@ -56,26 +82,53 @@ export const useMemoryInteractions = (memoryId: string | null) => {
     }
 
     setLoading(true);
-    const [{ data: reactionRows }, { data: commentRows }] = await Promise.all([
-      supabase
-        .from("memory_reactions")
-        .select("user_id, emoji")
-        .eq("memory_id", memoryId),
-      supabase
-        .from("memory_comments")
-        .select("*")
-        .eq("memory_id", memoryId)
-        .order("created_at", { ascending: true }),
-    ]);
+    Promise.all([loadReactions(), loadComments()]).finally(() =>
+      setLoading(false),
+    );
+  }, [memoryId, loadReactions, loadComments]);
 
-    setReactions(summarize(reactionRows ?? [], user?.uid ?? null));
-    setComments((commentRows ?? []).map(mapComment));
-    setLoading(false);
-  }, [memoryId, user?.uid]);
-
+  // Live updates for the open capsule. RLS scopes which events we receive.
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!memoryId) return;
+
+    const filter = `memory_id=eq.${memoryId}`;
+    const channel = supabase
+      .channel(`memory-interactions:${memoryId}`)
+      // Reactions are aggregated, so just refetch the (tiny) set on any change.
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "memory_reactions", filter },
+        () => loadReactions(),
+      )
+      // Comments update granularly to keep the list smooth.
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "memory_comments", filter },
+        (payload) => {
+          const incoming = mapComment(payload.new);
+
+          setComments((curr) =>
+            curr.some((c) => c.id === incoming.id) ? curr : [...curr, incoming],
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "memory_comments", filter },
+        (payload) => {
+          const goneId = (payload.old as { id?: string }).id;
+
+          if (goneId) {
+            setComments((curr) => curr.filter((c) => c.id !== goneId));
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [memoryId, loadReactions]);
 
   // Tap an emoji: set it, switch to it, or (if it's already yours) clear it.
   const react = async (emoji: string) => {
